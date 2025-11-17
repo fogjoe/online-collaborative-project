@@ -1,0 +1,33 @@
+# --- STAGE 1: "Builder" ---
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Install pnpm and dependencies
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+RUN corepack enable pnpm && \
+    pnpm install
+
+# Copy all source code
+COPY . .
+
+# Run the build script
+RUN pnpm run build
+
+# --- STAGE 2: "Production" ---
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Install pnpm and ONLY production dependencies
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+RUN corepack enable pnpm && \
+    pnpm install --prod
+
+# Copy the compiled /dist folder from the "builder" stage
+COPY --from=builder /app/dist ./dist
+
+# The command to run your compiled app
+CMD ["node", "dist/main.js"]

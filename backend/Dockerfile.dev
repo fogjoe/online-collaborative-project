@@ -1,0 +1,17 @@
+# 1. Use your specific Node.js version
+FROM node:22-alpine
+
+# 2. Set the working directory
+WORKDIR /app
+
+# 3. Copy ONLY the pnpm manifests
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+
+# 4. Install pnpm and then install dependencies
+# We add this step to ensure pnpm is available and used
+RUN corepack enable pnpm && \
+    pnpm install
+
+# 5. Run the dev command
+CMD ["pnpm", "run", "start:dev"]

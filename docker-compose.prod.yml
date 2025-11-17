@@ -1,0 +1,19 @@
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  # 1. 后端 NestJS 服务 (Prod Overrides)
+  backend:
+    build:
+      dockerfile: Dockerfile.prod # Use the production Dockerfile
+    ports:
+      - "8172:3000" # Or "80:3000" if behind a load balancer
+    # No volumes - code is copied into the image
+    # No depends_on - DB is external
+
+  # 2. 前端 React (Vite) 服务 (Prod Overrides)
+  frontend:
+    build:
+      dockerfile: Dockerfile.prod # Use the production Dockerfile
+    ports:
+      - "6173:5173" # Or "443:5173" if behind a load balancer

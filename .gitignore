@@ -1,0 +1,19 @@
+# Node
+node_modules/
+dist/
+
+# Frontend (Vite)
+frontend/dist/
+frontend/.vite/
+
+# Backend (NestJS)
+backend/dist/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+.env
+docker-compose.example.yml

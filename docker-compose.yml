@@ -1,0 +1,30 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # 1. 后端 NestJS 服务 (Base)
+  backend:
+    build:
+      context: ./backend # Path to the code
+    container_name: project_flow_backend
+    environment:
+      # These variables are read from the .env file
+      # In dev, they'll be overridden. In prod, they'll be used.
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      REDIS_HOST: ${REDIS_HOST}
+      MONGO_URI: ${MONGO_URI}
+
+  # 2. 前端 React (Vite) 服务 (Base)
+  frontend:
+    build:
+      context: ./frontend # Path to the code
+    container_name: project_flow_frontend
+
+# 定义数据卷
+volumes:
+  pg_data:
+  mongo_data:
