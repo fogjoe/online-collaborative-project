@@ -1,71 +1,98 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { User, Lock, Loader2, Orbit } from 'lucide-react'
 import { authApi } from '@/services/api'
-
-// Import shadcn-ui components
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { cardStyles, containerStyles, buttonStyles, linkStyles } from './Auth/AuthStyles'
 import { useAuth } from '@/context/useAuth'
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState<string>('')
-  const [password, setPassword] = useState<string>('')
-  const [error, setError] = useState<string>('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
   const { login } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
     setError('')
     try {
-      // Data now matches the LoginDto type
       const response = await authApi.login({ email, password })
-      const { accessToken } = response.data
-      login(accessToken) // Save token to context/localStorage
-      navigate('/dashboard') // Redirect to dashboard!
+      login(response.data.accessToken)
+      navigate('/dashboard')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      // 'any' is common for catch blocks
-      setError(err.response?.data?.message || 'Login failed. Please try again.')
+      setError('Invalid credentials.')
+      console.log('Login error:', err)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Log In to Project Flow</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-center text-sm text-red-700">{error}</div>}
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="name@example.com" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} />
-              </div>
-              <Button type="submit" className="w-full">
-                Continue
-              </Button>
+    <div className={containerStyles}>
+      <div className={cardStyles}>
+        {/* Header Section */}
+        <div className="flex flex-col items-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Log In to Project Flow</h1>
+          {/* Logo Replica */}
+          <div className="text-[#115E59]">
+            <Orbit size={48} strokeWidth={1.5} />
+          </div>
+        </div>
+
+        {error && <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 rounded-lg text-center">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Email/Username Input */}
+          <div className="relative group">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+              <User size={20} />
             </div>
-          </form>
-        </CardContent>
-        <CardFooter>
-          <p className="w-full text-center text-sm text-gray-600">
-            Don't have an account?{' '}
-            <a href="/register" className="font-medium text-teal-600 hover:text-teal-500">
+            <Input
+              type="text"
+              placeholder="Email address or username"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="h-12 pl-12 bg-white border-gray-200 rounded-xl text-gray-600 focus-visible:ring-0 focus-visible:border-[#115E59] transition-all"
+              required
+            />
+          </div>
+
+          {/* Password Input - High Precision Match */}
+          {/* Note: The image shows a specific teal bottom border on this field */}
+          <div className="relative group">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+              <User size={20} /> {/* Using User icon on left as per image glitch/style */}
+            </div>
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="h-12 pl-12 pr-12 bg-white border-gray-200 rounded-xl rounded-b-sm border-b-2 border-b-[#115E59] text-gray-600 focus-visible:ring-0"
+              required
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+              <Lock size={18} />
+            </div>
+          </div>
+
+          <Button type="submit" className={buttonStyles} disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Continue'}
+          </Button>
+
+          <div className="text-center mt-6">
+            <span className="text-gray-600 text-sm">Don't have an account? </span>
+            <Link to="/register" className={linkStyles}>
               Sign Up
-            </a>
-          </p>
-        </CardFooter>
-      </Card>
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

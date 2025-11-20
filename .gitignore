@@ -5,6 +5,7 @@ dist/
 # Frontend (Vite)
 frontend/dist/
 frontend/.vite/
+frontend/.pnpm-store/
 
 # Backend (NestJS)
 backend/dist/
