@@ -3,9 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { Project } from '../../projects/entities/project.entity';
 
-@Entity({ name: 'users' }) // This MUST match your lowercase table name
+@Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -17,7 +19,13 @@ export class User {
   email: string;
 
   @Column({ name: 'password_hash', type: 'varchar', length: 255 })
-  passwordHash: string; // Note: 'password_hash' in DB, 'passwordHash' in code
+  passwordHash: string;
+
+  @Column({ default: true })
+  isActive: boolean;
+
+  @OneToMany(() => Project, (project) => project.owner)
+  projects: Project[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

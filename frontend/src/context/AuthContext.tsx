@@ -1,9 +1,16 @@
 import { createContext, useState, ReactNode } from 'react'
 
 // 1. Define the shape of the context data
-interface AuthContextType {
+interface User {
+  id: string
+  username: string
+  email: string
+}
+
+export interface AuthContextType {
   token: string | null
-  login: (newToken: string) => void
+  user: User | null
+  login: (newToken: string, newUser: User) => void
   logout: () => void
 }
 
@@ -20,18 +27,27 @@ export { AuthContext }
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   // 4. Type the state
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('token') // Load token from storage on init
+    return localStorage.getItem('token')
   })
 
-  const login = (newToken: string) => {
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('user')
+    return savedUser ? JSON.parse(savedUser) : null
+  })
+
+  const login = (newToken: string, newUser: User) => {
     setToken(newToken)
+    setUser(newUser)
     localStorage.setItem('token', newToken)
+    localStorage.setItem('user', JSON.stringify(newUser))
   }
 
   const logout = () => {
     setToken(null)
+    setUser(null)
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
-  return <AuthContext.Provider value={{ token, login, logout }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ token, user, login, logout }}>{children}</AuthContext.Provider>
 }

@@ -21,7 +21,7 @@ export const LoginPage = () => {
     setError('')
     try {
       const response = await authApi.login({ email, password })
-      login(response.data.accessToken)
+      login(response.accessToken, response.user)
       navigate('/dashboard')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {

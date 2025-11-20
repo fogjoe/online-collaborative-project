@@ -11,24 +11,16 @@ interface PrivateRouteProps {
   children: React.ReactElement
 }
 
+import { DashboardPage } from './pages/Dashboard'
+import { ProjectBoardsPage } from './pages/ProjectBoards'
+import { BoardPage } from './pages/Board'
+
 // This component protects routes that require a user to be logged in
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const { token } = useAuth()
-  return token ? children : <Navigate to="/login" replace />
-}
-
-// A placeholder for your main app page
-const DashboardPage = () => {
-  const { logout } = useAuth()
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Welcome to your Dashboard!</h1>
-      <p>This is your protected route.</p>
-      <Button onClick={logout} variant="outline" className="mt-4">
-        Log Out
-      </Button>
-    </div>
-  )
+  // Check localStorage as fallback for immediate post-login navigation
+  const localToken = localStorage.getItem('token')
+  return token || localToken ? children : <Navigate to="/login" replace />
 }
 
 function App() {
@@ -45,6 +37,24 @@ function App() {
             element={
               <PrivateRoute>
                 <DashboardPage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/projects/:projectId"
+            element={
+              <PrivateRoute>
+                <ProjectBoardsPage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/board/:boardId"
+            element={
+              <PrivateRoute>
+                <BoardPage />
               </PrivateRoute>
             }
           />

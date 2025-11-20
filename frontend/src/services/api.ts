@@ -14,7 +14,7 @@ apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // This is the best place to add an auth token for other requests.
     // The token is typically saved in localStorage after login.
-    const token = localStorage.getItem('authToken')
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -59,9 +59,39 @@ apiClient.interceptors.response.use(
 
 // Your original API object, now powered by the interceptors
 export const authApi = {
-  login: (data: LoginDto) => apiClient.post(API.login, data),
-  register: (data: RegisterDto) => apiClient.post(API.register, data)
+  login: (data: LoginDto) => apiClient.post(API.login, data) as Promise<{ accessToken: string; user: any }>,
+  register: (data: RegisterDto) => apiClient.post(API.register, data) as Promise<any>
   // You can add other auth-related calls here
+}
+
+export const projectsApi = {
+  getAll: () => apiClient.get('/projects') as Promise<any[]>,
+  getOne: (id: string) => apiClient.get(`/projects/${id}`) as Promise<any>,
+  create: (data: { name: string; description?: string }) => apiClient.post('/projects', data) as Promise<any>,
+  update: (id: string, data: any) => apiClient.patch(`/projects/${id}`, data) as Promise<any>,
+  delete: (id: string) => apiClient.delete(`/projects/${id}`) as Promise<any>
+}
+
+export const boardsApi = {
+  getAll: (projectId: string) => apiClient.get(`/boards?projectId=${projectId}`) as Promise<any[]>,
+  getOne: (id: string) => apiClient.get(`/boards/${id}`) as Promise<any>,
+  create: (data: { name: string; projectId: string }) => apiClient.post('/boards', data) as Promise<any>,
+  update: (id: string, data: any) => apiClient.patch(`/boards/${id}`, data) as Promise<any>,
+  delete: (id: string) => apiClient.delete(`/boards/${id}`) as Promise<any>
+}
+
+export const listsApi = {
+  getAll: (boardId: string) => apiClient.get(`/lists?boardId=${boardId}`) as Promise<any[]>,
+  create: (data: { name: string; boardId: string; order?: number }) => apiClient.post('/lists', data) as Promise<any>,
+  update: (id: string, data: any) => apiClient.patch(`/lists/${id}`, data) as Promise<any>,
+  delete: (id: string) => apiClient.delete(`/lists/${id}`) as Promise<any>
+}
+
+export const cardsApi = {
+  getAll: (listId: string) => apiClient.get(`/cards?listId=${listId}`) as Promise<any[]>,
+  create: (data: { title: string; listId: string; description?: string; order?: number }) => apiClient.post('/cards', data) as Promise<any>,
+  update: (id: string, data: any) => apiClient.patch(`/cards/${id}`, data) as Promise<any>,
+  delete: (id: string) => apiClient.delete(`/cards/${id}`) as Promise<any>
 }
 
 // We also export the default client.

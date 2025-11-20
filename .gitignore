@@ -9,6 +9,7 @@ frontend/.pnpm-store/
 
 # Backend (NestJS)
 backend/dist/
+backend/.pnpm-store/
 
 # OS
 .DS_Store
