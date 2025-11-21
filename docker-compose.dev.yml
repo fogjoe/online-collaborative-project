@@ -2,37 +2,6 @@
 version: '3.8'
 
 services:
-  # 1. 后端 NestJS 服务 (Dev Overrides)
-  backend:
-    build:
-      dockerfile: Dockerfile.dev # Use the dev Dockerfile
-    ports:
-      - "7000:3000" # API 端口
-    volumes:
-      - ./backend:/app # 挂载代码，实现热重载
-      - /app/node_modules # 排除 node_modules
-    depends_on:
-      - db # 确保数据库先启动
-      - redis
-      - mongo
-    environment:
-      # Override environment for dev network
-      DB_HOST: db
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
-      REDIS_HOST: redis
-      MONGO_URI: mongodb://mongo:27017/project_flow_logs
-
-  # 2. 前端 React (Vite) 服务 (Dev Overrides)
-  frontend:
-    build:
-      dockerfile: Dockerfile.dev
-    ports:
-      - "6173:5173" # Vite 默认端口
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-
   # 3. PostgreSQL 数据库服务 (Dev Only)
   db:
     image: postgres:15-alpine

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cardStyles, containerStyles, buttonStyles, linkStyles } from './Auth/AuthStyles'
 import { useAuth } from '@/context/useAuth'
+import { hashSha256 } from '@/lib/utils'
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('')
@@ -20,7 +21,8 @@ export const LoginPage = () => {
     setIsLoading(true)
     setError('')
     try {
-      const response = await authApi.login({ email, password })
+      const hashedPassword = await hashSha256(password)
+      const response = await authApi.login({ email, password: hashedPassword })
       login(response.data.accessToken)
       navigate('/dashboard')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

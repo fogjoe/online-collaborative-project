@@ -12,6 +12,7 @@ import {
   FieldLabel // Optional: using for screen readers or if you want visible labels
 } from '@/components/ui/field'
 import { cardStyles, containerStyles, buttonStyles, linkStyles } from './Auth/AuthStyles'
+import { hashSha256 } from '@/lib/utils'
 
 export const RegisterPage = () => {
   // 1. Manual State Management
@@ -81,7 +82,10 @@ export const RegisterPage = () => {
 
     setIsLoading(true)
     try {
-      await authApi.register(formData)
+      // Hash password client-side before sending
+      const hashed = await hashSha256(formData.password)
+      const payload = { ...formData, password: hashed }
+      await authApi.register(payload)
       navigate('/login')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
