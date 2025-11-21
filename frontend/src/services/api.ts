@@ -14,7 +14,7 @@ apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // This is the best place to add an auth token for other requests.
     // The token is typically saved in localStorage after login.
-    const token = localStorage.getItem('authToken')
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -62,6 +62,11 @@ export const authApi = {
   login: (data: LoginDto) => apiClient.post(API.login, data),
   register: (data: RegisterDto) => apiClient.post(API.register, data)
   // You can add other auth-related calls here
+}
+
+export const projectApi = {
+  getAll: () => apiClient.get(API.projects),
+  create: (data: { name: string; description?: string }) => apiClient.post(API.projects, data)
 }
 
 // We also export the default client.

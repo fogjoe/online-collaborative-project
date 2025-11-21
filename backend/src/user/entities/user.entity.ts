@@ -3,7 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { Project } from '../../project/entities/project.entity';
 
 @Entity({ name: 'users' }) // This MUST match your lowercase table name
 export class User {
@@ -21,4 +23,8 @@ export class User {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  // A User can have many Projects
+  @OneToMany(() => Project, (project) => project.owner)
+  projects: Project[];
 }

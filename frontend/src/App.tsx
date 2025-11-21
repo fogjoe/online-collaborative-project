@@ -3,8 +3,8 @@ import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/useAuth'
 import { LoginPage } from './pages/Login'
 import { RegisterPage } from './pages/Register'
-import { Button } from '@/components/ui/button' // For the logout button
 import React from 'react' // Import React
+import { DashboardPage } from './pages/DashboardPage'
 
 // Type the props for PrivateRoute
 interface PrivateRouteProps {
@@ -15,20 +15,6 @@ interface PrivateRouteProps {
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const { token } = useAuth()
   return token ? children : <Navigate to="/login" replace />
-}
-
-// A placeholder for your main app page
-const DashboardPage = () => {
-  const { logout } = useAuth()
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Welcome to your Dashboard!</h1>
-      <p>This is your protected route.</p>
-      <Button onClick={logout} variant="outline" className="mt-4">
-        Log Out
-      </Button>
-    </div>
-  )
 }
 
 function App() {
@@ -58,4 +44,3 @@ function App() {
 }
 
 export default App
-

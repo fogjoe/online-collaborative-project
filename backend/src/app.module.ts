@@ -5,7 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './user/entities/user.entity';
+import { ProjectModule } from './project/project.module';
 
 @Module({
   imports: [
@@ -20,12 +20,14 @@ import { User } from './user/entities/user.entity';
         username: configService.get<string>('DB_USER'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        entities: [User],
+        // entities: [User],
+        autoLoadEntities: true,
         synchronize: true, // Note: Set to false in production
       }),
     }),
     AuthModule,
     UserModule,
+    ProjectModule,
   ],
   controllers: [AppController],
   providers: [AppService],
