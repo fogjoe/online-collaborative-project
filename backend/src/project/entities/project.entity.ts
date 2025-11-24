@@ -6,7 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
-import { User } from '../../user/entities/user.entity'; // 确保路径正确
+import { User } from '../../user/entities/user.entity'; // Ensure the path is correct
 
 @Entity('projects')
 export class Project {
@@ -19,8 +19,8 @@ export class Project {
   @Column({ nullable: true })
   description: string;
 
-  // 🔗 关键关系：多对一
-  // 多个 Project 属于 一个 User
+  // 🔗 Key relationship: Many-to-One
+  // Multiple Projects belong to one User
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   @ManyToOne(() => User, (user) => user.projects, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'owner_id' })

@@ -4,13 +4,13 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('projects')
-@UseGuards(JwtAuthGuard) // 🔒 只有登录用户能访问
+@UseGuards(JwtAuthGuard) // 🔒 Only logged in users can access
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
   @Post()
   create(@Body() createProjectDto: CreateProjectDto, @Req() req) {
-    // req.user 是 JwtStrategy 解析出来的当前用户
+    // req.user is the current user parsed by JwtStrategy
     return this.projectService.create(createProjectDto, req.user);
   }
 

@@ -28,9 +28,9 @@ export class TransformInterceptor<T>
         const statusCode = response.statusCode;
 
         return {
-          code: statusCode, // 将 statusCode 映射为 code
-          message: 'Request successful', // 默认成功消息，也可以根据逻辑自定义
-          data: data, // 你的 Service 返回的实际数据
+          code: statusCode, // Map statusCode to code
+          message: 'Request successful', // Default success message, can also be customized according to logic
+          data: data, // The actual data returned by your Service
         };
       }),
     );

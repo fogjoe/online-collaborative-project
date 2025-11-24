@@ -17,18 +17,18 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     navigate('/login')
   }
 
-  // 判断当前路径是否激活
+  // Determine if the current path is active
   const isActive = (path: string) => location.pathname === path
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
-      {/* Sidebar - 侧边栏 */}
+      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col fixed h-full z-10">
         {/* Logo Area */}
         <div className="p-6 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-teal-600 flex items-center justify-center">
-            {/* 一个简单的 Logo 图标 */}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="h-4 w-4 text-white">
+            {/* A simple Logo icon */}
+            <svg viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="3" className="h-4 w-4 text-white">
               <circle cx="12" cy="12" r="10" />
             </svg>
           </div>
@@ -52,14 +52,14 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </div>
       </aside>
 
-      {/* Main Content Area - 主内容区 */}
-      {/* ml-64 留出侧边栏的宽度，防止内容被遮挡 */}
+      {/* Main Content Area */}
+      {/* ml-64 leaves the width of the sidebar to prevent the content from being blocked */}
       <main className="flex-1 md:ml-64 min-h-screen bg-slate-50">{children}</main>
     </div>
   )
 }
 
-// 辅助组件：导航项
+// Helper component: Navigation item
 interface NavItemProps {
   icon: React.ReactNode
   label: string

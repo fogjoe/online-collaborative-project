@@ -3,9 +3,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Plus, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { projectApi } from '@/services/api' // 引入 API
+import { projectApi } from '@/services/api' // Import API
 
-// 定义数据类型
+// Define data types
 interface Project {
   id: number
   name: string
@@ -17,13 +17,13 @@ export const DashboardPage = () => {
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // 📥 页面加载时获取数据
+  // 📥 Fetch data on page load
   useEffect(() => {
     const fetchProjects = async () => {
       try {
         const response = await projectApi.getAll()
-        // 这里的 response.data 已经是拦截器处理过的 { code, message, data } 里的 data
-        // 或者如果你的拦截器只在 data 字段返回，请检查 console.log(response)
+        // The response.data here is the data in { code, message, data } processed by the interceptor
+        // Or if your interceptor only returns in the data field, please check console.log(response)
         setProjects(response.data)
       } catch (error) {
         console.error('Failed to fetch projects', error)
@@ -43,7 +43,7 @@ export const DashboardPage = () => {
             <h1 className="text-2xl font-bold text-slate-800">Your Project Spaces</h1>
             <p className="text-slate-500">Manage your active sprints and boards</p>
           </div>
-          {/* 这个按钮还没功能，下一步我们做弹窗 */}
+          {/* This button has no function yet, we will make a pop-up window in the next step */}
           <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-2">
             <Plus size={18} /> Create New Project
           </Button>
@@ -60,7 +60,7 @@ export const DashboardPage = () => {
             {projects.map(project => (
               <Link key={project.id} to={`/board/${project.id}`} className="group">
                 <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all cursor-pointer h-full flex flex-col">
-                  {/* 显示真实数据 */}
+                  {/* Display real data */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="h-10 w-10 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold">{project.name.charAt(0).toUpperCase()}</div>
                   </div>

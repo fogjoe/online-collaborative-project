@@ -12,27 +12,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
   ) {
     super({
-      // 1. 告诉它去哪里找 Token (Authorization Header: Bearer ...)
+      // 1. Tell it where to find the Token (Authorization Header: Bearer ...)
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      // 2. 是否忽略过期时间 (否，过期了就报错)
+      // 2. Whether to ignore the expiration time (No, an error will be reported if it expires)
       ignoreExpiration: false,
-      // 3. 告诉它解密用的密钥 (必须和签发时的一样！)
+      // 3. Tell it the secret key for decryption (must be the same as when it was issued!)
       secretOrKey: configService.get<string>('JWT_SECRET')!,
     });
   }
 
-  // 4. 验证通过后，NestJS 会自动调用这个 validate 函数
+  // 4. After the validation is passed, NestJS will automatically call this validate function
   async validate(payload: { sub: number; email: string }) {
-    // payload 是 Token 解密后的 JSON 数据
+    // payload is the JSON data after the Token is decrypted
     const user = await this.userService.findOneByEmail(payload.email);
     if (!user) {
       throw new UnauthorizedException();
     }
-    // 删除密码哈希，不让它在系统里流转
+    // Delete the password hash to prevent it from circulating in the system
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...result } = user;
 
-    // 返回值会被 NestJS 自动放入 request.user 中
+    // The return value will be automatically put into request.user by NestJS
     return result;
   }
 }

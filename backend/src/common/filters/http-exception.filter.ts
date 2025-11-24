@@ -4,13 +4,13 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  Logger, // 👈 1. 引入 Logger
+  Logger, // 👈 1. Import Logger
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  // 创建一个 Logger 实例
+  // Create a Logger instance
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -23,18 +23,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    // 👇👇👇 2. 关键步骤：把错误打印到终端！ 👇👇👇
-    // 如果是 500 错误，打印详细堆栈；如果是普通 400 错误，只打印消息
+    // 👇👇👇 2. Key step: Print the error to the terminal! 👇👇👇
+    // If it is a 500 error, print the detailed stack; if it is a normal 400 error, only print the message
     // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(exception);
       if (exception instanceof Error) {
-        console.error(exception.stack); // 打印完整的堆栈信息
+        console.error(exception.stack); // Print the complete stack information
       }
     } else {
       this.logger.warn(`Request Error: ${request.url}`);
     }
-    // 👆👆👆 添加结束 👆👆👆
+    // 👆👆👆 End of addition 👆👆👆
 
     let message = 'Internal server error';
     if (exception instanceof HttpException) {

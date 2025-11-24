@@ -12,20 +12,20 @@ export class ProjectService {
     private projectRepository: Repository<Project>,
   ) {}
 
-  // 创建项目时，必须知道是“谁”创建的
+  // When creating a project, you must know "who" created it
   async create(createProjectDto: CreateProjectDto, user: User) {
     const newProject = this.projectRepository.create({
       ...createProjectDto,
-      owner: user, // 关联当前登录用户
+      owner: user, // Associate with the currently logged in user
     });
     return this.projectRepository.save(newProject);
   }
 
-  // 查找当前用户的所有项目
+  // Find all projects of the current user
   async findAllByUser(user: User) {
     return this.projectRepository.find({
       where: { owner: { id: user.id } },
-      order: { createdAt: 'DESC' }, // 最新创建的在前面
+      order: { createdAt: 'DESC' }, // The latest created is at the front
     });
   }
 }
