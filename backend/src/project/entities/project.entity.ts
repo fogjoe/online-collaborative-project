@@ -21,7 +21,6 @@ export class Project {
 
   // 🔗 Key relationship: Many-to-One
   // Multiple Projects belong to one User
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   @ManyToOne(() => User, (user) => user.projects, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'owner_id' })
   owner: User;
