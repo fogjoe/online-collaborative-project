@@ -5,8 +5,10 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity'; // Ensure the path is correct
+import { List } from 'src/list/entities/list.entity';
 
 @Entity('projects')
 export class Project {
@@ -24,6 +26,9 @@ export class Project {
   @ManyToOne(() => User, (user) => user.projects, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'owner_id' })
   owner: User;
+
+  @OneToMany(() => List, (list) => list.project)
+  lists: List[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

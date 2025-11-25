@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { Button } from '@/components/ui/button'
-import { Plus, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { projectApi } from '@/services/api' // Import API
+import { CreateProjectDialog } from './Dashboard/CreateProjectDialog'
 
 // Define data types
 interface Project {
@@ -18,20 +18,19 @@ export const DashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true)
 
   // 📥 Fetch data on page load
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await projectApi.getAll()
-        // The response.data here is the data in { code, message, data } processed by the interceptor
-        // Or if your interceptor only returns in the data field, please check console.log(response)
-        setProjects(response.data)
-      } catch (error) {
-        console.error('Failed to fetch projects', error)
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchProjects = async () => {
+    try {
+      const response = await projectApi.getAll()
+      // The response.data here is the data in { code, message, data } processed by the interceptor
+      // Or if your interceptor only returns in the data field, please check console.log(response)
+      setProjects(response.data)
+    } catch (error) {
+      console.error('Failed to fetch projects', error)
+    } finally {
+      setIsLoading(false)
     }
-
+  }
+  useEffect(() => {
     fetchProjects()
   }, [])
 
@@ -43,10 +42,7 @@ export const DashboardPage = () => {
             <h1 className="text-2xl font-bold text-slate-800">Your Project Spaces</h1>
             <p className="text-slate-500">Manage your active sprints and boards</p>
           </div>
-          {/* This button has no function yet, we will make a pop-up window in the next step */}
-          <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-2">
-            <Plus size={18} /> Create New Project
-          </Button>
+          <CreateProjectDialog onProjectCreated={fetchProjects} />
         </div>
 
         {isLoading ? (

@@ -5,6 +5,7 @@ import { LoginPage } from './pages/Login'
 import { RegisterPage } from './pages/Register'
 import React from 'react' // Import React
 import { DashboardPage } from './pages/DashboardPage'
+import { Toaster } from '@/components/ui/sonner'
 
 // Type the props for PrivateRoute
 interface PrivateRouteProps {
@@ -39,6 +40,7 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
+      <Toaster />
     </AuthProvider>
   )
 }

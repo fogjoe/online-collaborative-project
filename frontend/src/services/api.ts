@@ -1,12 +1,16 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios'
 import type { LoginDto, RegisterDto } from '@/types/auth'
 import API from '@/common/api'
+import { toast } from 'sonner'
 
 // API is running on port 3000
 const apiClient = axios.create({
   baseURL: 'http://localhost:7000/api',
   timeout: 5000 // Added a timeout for good practice
 })
+
+// define a sample lock variable
+let isRedirecting = false
 
 // --- 1. Request Interceptor ---
 // This runs BEFORE your request is sent.
@@ -54,6 +58,42 @@ apiClient.interceptors.response.use(
       // Something else bad happened (e.g., config error)
       return Promise.reject({ message: error.message })
     }
+  }
+)
+
+// 👇👇👇 NEW: Response Interceptor 👇👇👇
+apiClient.interceptors.response.use(
+  response => {
+    // If the response is successful (2xx), just return the data
+    return response
+  },
+  error => {
+    // If the response failed
+    if (error && error.code === 401) {
+      // check the lock, if it already redirects, ignoring the next 401 error
+      if (!isRedirecting) {
+        isRedirecting = true // enable lock
+
+        // 1. Clear the invalid/expired token
+        toast.error('Authentication Failed', {
+          position: 'top-center',
+          description: 'Token expired. Please log in again.',
+          duration: 2000 // Optional: ensure it stays long enough
+        })
+
+        localStorage.removeItem('token')
+
+        // 2. Force redirect to login page
+        // Note: We use window.location.href instead of useNavigate because
+        // this file is not a React component. This also clears React state memory.
+        if (window.location.pathname !== '/login') {
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 1500) // 1.5s delay to let them read the red toast
+        }
+      }
+    }
+    return Promise.reject(error)
   }
 )
 
