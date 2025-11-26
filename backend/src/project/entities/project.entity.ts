@@ -21,6 +21,9 @@ export class Project {
   @Column({ nullable: true })
   description: string;
 
+  @Column({ name: 'avatar_url', type: 'text', nullable: true })
+  avatarUrl: string | null;
+
   // 🔗 Key relationship: Many-to-One
   // Multiple Projects belong to one User
   @ManyToOne(() => User, (user) => user.projects, { onDelete: 'CASCADE' })

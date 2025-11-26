@@ -1,22 +1,15 @@
-import { Controller, Get, Body, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { CardService } from './card.service';
+import { CreateCardDto } from './dto/create-card.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('card')
+@Controller('cards')
+@UseGuards(JwtAuthGuard)
 export class CardController {
   constructor(private readonly cardService: CardService) {}
 
-  @Get()
-  findAll() {
-    return this.cardService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cardService.findOne(+id);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.cardService.remove(+id);
+  @Post()
+  create(@Body() createCardDto: CreateCardDto) {
+    return this.cardService.create(createCardDto);
   }
 }

@@ -3,9 +3,10 @@ import { ListService } from './list.service';
 import { ListController } from './list.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { List } from './entities/list.entity';
+import { Project } from '../project/entities/project.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([List])],
+  imports: [TypeOrmModule.forFeature([List, Project])],
   controllers: [ListController],
   providers: [ListService],
 })
