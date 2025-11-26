@@ -6,6 +6,7 @@ import { RegisterPage } from './pages/Register'
 import React from 'react' // Import React
 import { DashboardPage } from './pages/DashboardPage'
 import { Toaster } from '@/components/ui/sonner'
+import { BoardPage } from './pages/BoardPage'
 
 // Type the props for PrivateRoute
 interface PrivateRouteProps {
@@ -32,6 +33,15 @@ function App() {
             element={
               <PrivateRoute>
                 <DashboardPage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/board/:id"
+            element={
+              <PrivateRoute>
+                <BoardPage />
               </PrivateRoute>
             }
           />

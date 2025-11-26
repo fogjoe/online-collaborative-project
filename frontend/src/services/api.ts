@@ -61,7 +61,7 @@ apiClient.interceptors.response.use(
   }
 )
 
-// 👇👇👇 NEW: Response Interceptor 👇👇👇
+// NEW: Response Interceptor
 apiClient.interceptors.response.use(
   response => {
     // If the response is successful (2xx), just return the data
@@ -106,7 +106,17 @@ export const authApi = {
 
 export const projectApi = {
   getAll: () => apiClient.get(API.projects),
-  create: (data: { name: string; description?: string }) => apiClient.post(API.projects, data)
+  create: (data: { name: string; description?: string }) => apiClient.post(API.projects, data),
+  delete: (id: number) => apiClient.delete(API.deleteProject(id))
+}
+
+export const listApi = {
+  getByProject: (projectId: number) => apiClient.get(API.getListsByProject(projectId)),
+  create: (data: { name: string; projectId: number }) => apiClient.post(API.createList, data)
+}
+
+export const cardApi = {
+  create: (data: { title: string; listId: number; description?: string }) => apiClient.post(API.createCard, data)
 }
 
 // We also export the default client.

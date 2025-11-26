@@ -1,7 +1,11 @@
 const API = {
   login: '/auth/login',
   register: '/auth/register',
-  projects: '/projects'
+  projects: '/projects',
+  getListsByProject: (projectId: number) => `/lists/project/${projectId}`,
+  createList: '/lists',
+  createCard: '/cards',
+  deleteProject: (projectId: number) => `/projects/${projectId}` 
   // You can add other auth-related endpoints here
 }
 
