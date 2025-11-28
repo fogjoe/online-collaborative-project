@@ -34,6 +34,7 @@ export class CardService {
       description,
       order: newOrder,
       list,
+      isCompleted: false,
     });
 
     return this.cardRepository.save(newCard);

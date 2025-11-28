@@ -26,6 +26,9 @@ export class Card {
   @Column({ type: 'decimal', precision: 10, scale: 4, default: 0 })
   order: number;
 
+  @Column({ type: 'boolean', default: false })
+  isCompleted: boolean;
+
   /**
    * Relationship: Many Cards belong to One List.
    */
