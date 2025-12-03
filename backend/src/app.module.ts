@@ -10,6 +10,8 @@ import { ListModule } from './list/list.module';
 import { CardModule } from './card/card.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 @Module({
   imports: [
@@ -40,6 +42,12 @@ import { join } from 'path';
     CardModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TransformInterceptor,
+    },
+    AppService,
+  ],
 })
 export class AppModule {}

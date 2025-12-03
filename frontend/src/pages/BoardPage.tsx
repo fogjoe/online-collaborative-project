@@ -1,13 +1,19 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Share2, Plus, Check } from 'lucide-react'
+import { toast } from 'sonner'
 import { listApi, cardApi } from '@/services/api'
 
-// --- Types ---
-interface Card {
+enum ListStatus {
+  TODO = 'TODO',
+  IN_PROGRESS = 'IN_PROGRESS',
+  DONE = 'DONE'
+}
+
+export interface Card {
   id: number
   title: string
   description?: string
@@ -15,20 +21,55 @@ interface Card {
   isCompleted: boolean
 }
 
-interface List {
+// The raw List object from the DB
+interface DbList {
   id: number
-  name: string
+  status: ListStatus // Changed from 'name' to 'status'
   order: number
   cards: Card[]
+}
+
+// The structure for our UI Columns
+interface BoardColumn {
+  id: string // This will be the DB List ID as a string
+  title: string // Display Title ("To Do")
+  status: ListStatus
+  cards: Card[]
+}
+
+// --- Constants & Helpers ---
+
+const COLUMN_TITLES: Record<ListStatus, string> = {
+  [ListStatus.TODO]: 'To Do',
+  [ListStatus.IN_PROGRESS]: 'In Progress',
+  [ListStatus.DONE]: 'Done'
+}
+
+// Fractional Indexing Helper
+const calculateNewOrder = (cards: Card[], destinationIndex: number): number => {
+  if (!cards || cards.length === 0) return 10000
+  if (destinationIndex === 0) return cards[0].order / 2
+  if (destinationIndex >= cards.length) return cards[cards.length - 1].order + 10000
+
+  const prevCard = cards[destinationIndex - 1]
+  const nextCard = cards[destinationIndex]
+
+  if (!prevCard || !nextCard) return 10000
+
+  return (prevCard.order + nextCard.order) / 2
 }
 
 export const BoardPage = () => {
   const { id } = useParams<{ id: string }>()
   const projectId = Number(id)
 
-  const [lists, setLists] = useState<List[]>([])
+  // We keep the raw lists to know which ID belongs to which Status
+  const [dbLists, setDbLists] = useState<DbList[]>([])
 
-  // Add Card State
+  // We store cards in a map { listId: Card[] } for easy DND updates
+  const [cardsByListId, setCardsByListId] = useState<Record<number, Card[]>>({})
+
+  // Local state for adding cards
   const [addingCardToListId, setAddingCardToListId] = useState<number | null>(null)
   const [newCardTitle, setNewCardTitle] = useState('')
   const [newCardDesc, setNewCardDesc] = useState('')
@@ -36,187 +77,301 @@ export const BoardPage = () => {
   // --- 1. Fetch Data ---
   useEffect(() => {
     if (!projectId) return
-    const fetchLists = async () => {
-      try {
-        const response = await listApi.getByProject(projectId)
-        setLists(response.data)
-      } catch (error) {
-        console.error('Failed to fetch lists', error)
-      }
-    }
-    fetchLists()
+
+    listApi
+      .getByProject(projectId)
+      .then(response => {
+        const lists: DbList[] = response.data
+        setDbLists(lists)
+
+        // Transform into our Map structure
+        const newCardsMap: Record<number, Card[]> = {}
+        lists.forEach(list => {
+          // Ensure cards are sorted by order
+          newCardsMap[list.id] = (list.cards || []).sort((a, b) => a.order - b.order)
+        })
+        setCardsByListId(newCardsMap)
+      })
+      .catch(error => {
+        console.error('Failed to fetch board', error)
+        toast.error('Failed to load board data')
+      })
   }, [projectId])
 
-  // --- 2. Drag Logic ---
+  // --- 2. Construct UI Columns ---
+  // We want FIXED columns (Todo -> In Progress -> Done) regardless of DB order
+  const boardColumns: BoardColumn[] = useMemo(() => {
+    // 1. Find the DB List ID for each status
+    // (Assuming backend ensures 1 list per status exists)
+    const getListByStatus = (status: ListStatus) => dbLists.find(l => l.status === status)
+
+    const todoList = getListByStatus(ListStatus.TODO)
+    const inProgressList = getListByStatus(ListStatus.IN_PROGRESS)
+    const doneList = getListByStatus(ListStatus.DONE)
+
+    // 2. Map to UI structure
+    // If backend hasn't created the list yet, we might have a null ID (handled safely below)
+    return [
+      {
+        id: todoList?.id.toString() || 'missing-todo',
+        title: COLUMN_TITLES[ListStatus.TODO],
+        status: ListStatus.TODO,
+        cards: todoList ? cardsByListId[todoList.id] || [] : []
+      },
+      {
+        id: inProgressList?.id.toString() || 'missing-inprogress',
+        title: COLUMN_TITLES[ListStatus.IN_PROGRESS],
+        status: ListStatus.IN_PROGRESS,
+        cards: inProgressList ? cardsByListId[inProgressList.id] || [] : []
+      },
+      {
+        id: doneList?.id.toString() || 'missing-done',
+        title: COLUMN_TITLES[ListStatus.DONE],
+        status: ListStatus.DONE,
+        cards: doneList ? cardsByListId[doneList.id] || [] : []
+      }
+    ]
+  }, [dbLists, cardsByListId])
+
+  // --- 3. Drag Logic ---
   const onDragEnd = (result: DropResult) => {
-    const { source, destination } = result
+    const { source, destination, draggableId } = result
+
+    // Basic validation
     if (!destination) return
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
-    const newLists = [...lists]
-    const sourceList = newLists.find(l => l.id.toString() === source.droppableId)
-    const destList = newLists.find(l => l.id.toString() === destination.droppableId)
+    // Parse IDs
+    const sourceListId = Number(source.droppableId)
+    const destListId = Number(destination.droppableId)
 
-    if (sourceList && destList) {
-      const [movedCard] = sourceList.cards.splice(source.index, 1)
-      destList.cards.splice(destination.index, 0, movedCard)
-      setLists(newLists)
-      // TODO: Call Backend API
-    }
+    // Clone current state
+    const newCardsMap = { ...cardsByListId }
+
+    // Get arrays (handle moving between different lists)
+    const sourceCards = [...(newCardsMap[sourceListId] || [])]
+    const destCards = sourceListId === destListId ? sourceCards : [...(newCardsMap[destListId] || [])]
+
+    // 1. Remove from Source
+    const [movedCard] = sourceCards.splice(source.index, 1)
+
+    // 2. Add to Destination
+    destCards.splice(destination.index, 0, movedCard)
+
+    // 3. Calculate New Order
+    const newOrder = calculateNewOrder(destCards, destination.index)
+    movedCard.order = newOrder
+
+    // 4. Update Map & State (Optimistic)
+    newCardsMap[sourceListId] = sourceCards
+    newCardsMap[destListId] = destCards
+    setCardsByListId(newCardsMap)
+
+    // 5. API Call
+    cardApi
+      .reorder({
+        cardId: Number(draggableId),
+        targetListId: destListId,
+        newOrder: newOrder
+      })
+      .then(res => {
+        console.log('res: ', res)
+        toast.success(res?.message || 'Card moved successfully')
+      })
+      .catch(() => {
+        toast.error('Failed to save card position')
+        // Ideally revert state here in a real app
+      })
   }
 
-  // --- 3. Create Card Logic ---
-  const handleCreateCard = async (e: React.FormEvent, listId: number) => {
+  // --- 4. Create Card ---
+  const handleCreateCard = (e: React.FormEvent, listId: number) => {
     e.preventDefault()
     if (!newCardTitle.trim()) return
 
-    try {
-      const response = await cardApi.create({
+    cardApi
+      .create({
         title: newCardTitle,
         description: newCardDesc,
         listId
       })
+      .then(response => {
+        const newCard = response.data
 
-      const newCard = response.data
+        // Update local state
+        setCardsByListId(prev => ({
+          ...prev,
+          [listId]: [...(prev[listId] || []), newCard]
+        }))
 
-      setLists(
-        lists.map(list => {
-          if (list.id === listId) {
-            return { ...list, cards: [...list.cards, newCard] }
-          }
-          return list
-        })
-      )
+        // Reset form
+        setNewCardTitle('')
+        setNewCardDesc('')
+        setAddingCardToListId(null)
+      })
+      .catch(error => {
+        console.error('Failed to create card', error)
+        toast.error('Failed to create card')
+      })
+  }
 
-      setNewCardTitle('')
-      setNewCardDesc('')
-      setAddingCardToListId(null)
-    } catch (error) {
-      console.error('Failed to create card', error)
-    }
+  // --- 5. Toggle Status ---
+  const handleToggleCardStatus = (cardId: number, currentStatus: boolean, listId: number) => {
+    // 1. Optimistic Update
+    setCardsByListId(prev => {
+      const listCards = prev[listId] || []
+      const updatedCards = listCards.map(c => (c.id === cardId ? { ...c, isCompleted: !currentStatus } : c))
+      return { ...prev, [listId]: updatedCards }
+    })
+
+    // 2. API Call
+    cardApi.toggleStatus(cardId).catch(() => {
+      toast.error('Failed to update status')
+      // Revert logic would go here
+      setCardsByListId(prev => {
+        const listCards = prev[listId] || []
+        const updatedCards = listCards.map(c => (c.id === cardId ? { ...c, isCompleted: currentStatus } : c))
+        return { ...prev, [listId]: updatedCards }
+      })
+    })
   }
 
   return (
     <DashboardLayout>
-      {/* Page Background: Light Gray matching the image */}
       <div className="flex flex-col h-full bg-[#F3F4F6]">
-        {/* Header Section */}
+        {/* Header */}
         <div className="flex-none px-8 py-8 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Website Redesign Sprint</h1>
-
-          {/* Share Button (Teal) */}
           <Button className="bg-[#0F766E] hover:bg-[#0d655e] text-white gap-2 rounded-lg px-6 shadow-sm h-10">
             <Share2 size={18} /> Share
           </Button>
         </div>
 
-        {/* Kanban Board Area */}
+        {/* Kanban Board Container */}
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex-1 overflow-x-auto overflow-y-hidden px-8 pb-8">
             <div className="flex h-full gap-8">
-              {' '}
-              {/* Increased gap for cleaner look */}
-              {lists.map(list => (
-                <div key={list.id} className="w-[320px] flex-shrink-0 flex flex-col">
-                  {/* Column Header */}
-                  <div className="flex items-center justify-between mb-5 px-1">
-                    <h3 className="font-semibold text-slate-700 text-base">{list.name}</h3>
-                  </div>
+              {/* Render the 3 Fixed Columns */}
+              {boardColumns.map(column => {
+                // If the backend hasn't created this list yet, handle it safely
+                // (In a real app, you might auto-create these lists on Project creation)
+                const isListReady = !column.id.startsWith('missing')
+                const numericListId = isListReady ? Number(column.id) : -1
 
-                  {/* Droppable Zone */}
-                  <Droppable droppableId={list.id.toString()}>
-                    {(provided, snapshot) => (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className={`flex-1 flex flex-col gap-4 transition-colors ${snapshot.isDraggingOver ? 'bg-slate-200/30 rounded-xl' : ''}`}
-                      >
-                        {list.cards.map((card, index) => (
-                          <Draggable key={card.id} draggableId={card.id.toString()} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                style={{ ...provided.draggableProps.style }}
-                                className={`
-                                  bg-white p-5 rounded-xl border border-transparent group relative
-                                  ${snapshot.isDragging ? 'shadow-xl ring-1 ring-[#0F766E]/20 rotate-2 scale-105 z-50' : 'shadow-[0_1px_3px_rgba(0,0,0,0.05)] hover:shadow-md'}
-                                  transition-all duration-200 ease-in-out
-                                `}
-                              >
-                                {/* Card Content */}
-                                <div className="flex flex-col gap-1.5">
-                                  {/* Title */}
-                                  <h4 className="text-slate-900 font-semibold text-[15px] leading-snug">{card.title}</h4>
+                return (
+                  <div key={column.status} className="w-[320px] flex-shrink-0 flex flex-col max-h-full">
+                    {/* List Header */}
+                    <div className="flex-none flex items-center justify-between mb-5 px-1">
+                      <h3 className="font-semibold text-slate-700 text-base">{column.title}</h3>
+                      <span className="text-xs font-medium text-slate-400 bg-slate-200/50 px-2 py-0.5 rounded-full">{column.cards.length}</span>
+                    </div>
 
-                                  {/* Description (Grey Text) */}
-                                  {card.description && <p className="text-slate-500 text-[13px] font-normal leading-relaxed">{card.description}</p>}
-                                </div>
-
-                                {/* Footer: Completed Status Icon */}
-                                <div className="flex justify-end mt-3 pt-2">
-                                  <div
-                                    className={`
-                                    w-6 h-6 rounded-full flex items-center justify-center transition-colors
-                                    ${card.isCompleted ? 'bg-[#10B981] text-white' : 'bg-slate-100 text-slate-300'}
+                    {/* Droppable Zone (Scrollable) */}
+                    <Droppable droppableId={column.id} isDropDisabled={!isListReady}>
+                      {(provided, snapshot) => (
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          className={`
+                            flex-1 flex flex-col gap-4 overflow-y-auto no-scrollbar min-h-0 pr-2
+                            ${snapshot.isDraggingOver ? 'bg-slate-200/50 rounded-xl' : ''}
+                          `}
+                        >
+                          {column.cards.map((card, index) => (
+                            <Draggable key={card.id} draggableId={card.id.toString()} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  style={{ ...provided.draggableProps.style }}
+                                  className={`
+                                    bg-white p-5 rounded-xl border border-transparent group relative flex-shrink-0
+                                    ${snapshot.isDragging ? 'shadow-xl ring-1 ring-[#0F766E]/20 rotate-2 scale-105 z-50' : 'shadow-[0_1px_3px_rgba(0,0,0,0.05)] hover:shadow-md'}
+                                    transition-all duration-200 ease-in-out
                                   `}
-                                  >
-                                    <Check size={14} strokeWidth={3} />
+                                >
+                                  {/* Card Content */}
+                                  <div className="flex flex-col gap-1.5">
+                                    <h4 className={`text-slate-900 font-semibold text-[15px] leading-snug ${card.isCompleted ? 'line-through text-slate-400' : ''}`}>{card.title}</h4>
+                                    {card.description && <p className={`text-[13px] font-normal leading-relaxed ${card.isCompleted ? 'text-slate-300' : 'text-slate-500'}`}>{card.description}</p>}
+                                  </div>
+
+                                  {/* Actions */}
+                                  <div className="flex justify-end mt-3 pt-2">
+                                    <button
+                                      onClick={() => handleToggleCardStatus(card.id, card.isCompleted, numericListId)}
+                                      className={`
+                                        w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200
+                                        border cursor-pointer hover:scale-110 active:scale-95
+                                        ${
+                                          card.isCompleted
+                                            ? 'bg-[#10B981] border-[#10B981] text-white shadow-sm'
+                                            : 'bg-white border-slate-200 text-transparent hover:border-[#10B981]/50 hover:text-[#10B981]/50'
+                                        }
+                                      `}
+                                    >
+                                      <Check size={14} strokeWidth={3} />
+                                    </button>
                                   </div>
                                 </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
 
-                        {/* --- Add Card Area --- */}
-                        {addingCardToListId === list.id ? (
-                          <div className="bg-white p-4 rounded-xl shadow-lg border border-[#0F766E] animate-in fade-in zoom-in-95">
-                            <input
-                              autoFocus
-                              placeholder="Card Title..."
-                              className="w-full text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none bg-transparent mb-2"
-                              value={newCardTitle}
-                              onChange={e => setNewCardTitle(e.target.value)}
-                            />
-                            <textarea
-                              placeholder="Description (optional)..."
-                              className="w-full text-xs text-slate-600 placeholder:text-slate-300 resize-none outline-none bg-transparent min-h-[40px]"
-                              value={newCardDesc}
-                              onChange={e => setNewCardDesc(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault()
-                                  handleCreateCard(e, list.id)
-                                }
-                              }}
-                            />
-                            <div className="flex justify-end gap-2 mt-3 border-t border-slate-100 pt-2">
-                              <Button size="sm" variant="ghost" onClick={() => setAddingCardToListId(null)} className="h-8 px-2 text-slate-500">
-                                Cancel
-                              </Button>
-                              <Button size="sm" onClick={e => handleCreateCard(e, list.id)} className="h-8 bg-[#0F766E] hover:bg-[#0d655e] text-white px-4">
-                                Add
-                              </Button>
+                          {/* Add Card Form - Only show if list is ready */}
+                          {isListReady && (
+                            <div className="flex-shrink-0 pb-2">
+                              {addingCardToListId === numericListId ? (
+                                <div className="bg-white p-4 rounded-xl shadow-lg border border-[#0F766E] animate-in fade-in zoom-in-95 mt-1">
+                                  <input
+                                    autoFocus
+                                    placeholder="Card Title..."
+                                    className="w-full text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none bg-transparent mb-2"
+                                    value={newCardTitle}
+                                    onChange={e => setNewCardTitle(e.target.value)}
+                                  />
+                                  <textarea
+                                    placeholder="Description (optional)..."
+                                    className="w-full text-xs text-slate-600 placeholder:text-slate-300 resize-none outline-none bg-transparent min-h-[40px]"
+                                    value={newCardDesc}
+                                    onChange={e => setNewCardDesc(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault()
+                                        handleCreateCard(e, numericListId)
+                                      }
+                                    }}
+                                  />
+                                  <div className="flex justify-end gap-2 mt-3 border-t border-slate-100 pt-2">
+                                    <Button size="sm" variant="ghost" onClick={() => setAddingCardToListId(null)} className="h-7 px-2 text-slate-500 hover:text-slate-700">
+                                      Cancel
+                                    </Button>
+                                    <Button size="sm" onClick={e => handleCreateCard(e, numericListId)} className="h-7 bg-[#0F766E] hover:bg-[#0d655e] text-white px-3">
+                                      Add
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : column?.status === ListStatus.TODO ? (
+                                <button
+                                  onClick={() => setAddingCardToListId(numericListId)}
+                                  className="flex items-center gap-2 text-white bg-[#0F766E] hover:bg-[#0d655e] hover:shadow-md px-4 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm w-fit mt-2 opacity-90 hover:opacity-100"
+                                >
+                                  <Plus size={16} /> Add a card
+                                </button>
+                              ) : null}
                             </div>
-                          </div>
-                        ) : (
-                          /* Add Button matching the Teal pill style in the image */
-                          <button
-                            onClick={() => setAddingCardToListId(list.id)}
-                            className="flex items-center gap-2 text-white bg-[#0F766E] hover:bg-[#0d655e] px-4 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm w-fit mt-2"
-                          >
-                            <Plus size={16} /> Add a card
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-              ))}
-              {/* Placeholder for Add List (Optional visual balance) */}
-              <div className="w-[320px] flex-shrink-0 opacity-0 pointer-events-none"></div>
+                          )}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+                )
+              })}
+
+              {/* Spacer */}
+              <div className="w-8 flex-shrink-0" />
             </div>
           </div>
         </DragDropContext>

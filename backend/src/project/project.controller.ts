@@ -17,11 +17,15 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard) //  Only logged in users can access
 export class ProjectController {
-  constructor(private readonly projectService: ProjectService) {}
+  constructor(
+    private readonly projectService: ProjectService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post()
   @UseInterceptors(
@@ -50,7 +54,7 @@ export class ProjectController {
     let avatarUrl: string | null = null;
     if (file) {
       // Note: In production, use your actual domain env variable instead of localhost
-      const backendUrl = 'http://localhost:7000';
+      const backendUrl = this.configService.get<string>('SERVICE_URL');
       avatarUrl = `${backendUrl}/uploads/${file.filename}`;
     }
 

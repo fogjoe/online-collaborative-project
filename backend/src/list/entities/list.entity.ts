@@ -7,8 +7,9 @@ import {
   JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
-import { Project } from '../../project/entities/project.entity'; // Assuming 1 Project = 1 Board for V1
+import { Project } from '../../project/entities/project.entity';
 import { Card } from '../../card/entities/card.entity';
+import { ListStatus } from '../enums/list-status.enum';
 
 @Entity('lists')
 export class List {
@@ -17,6 +18,13 @@ export class List {
 
   @Column()
   name: string;
+
+  @Column({
+    type: 'enum',
+    enum: ListStatus,
+    default: ListStatus.TODO,
+  })
+  status: ListStatus;
 
   /**
    * We use 'decimal' type for order to allow inserting items between others

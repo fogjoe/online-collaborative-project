@@ -1,7 +1,14 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios'
+import axios, { type InternalAxiosRequestConfig, type AxiosError, AxiosResponse } from 'axios'
 import type { LoginDto, RegisterDto } from '@/types/auth'
 import API from '@/common/api'
 import { toast } from 'sonner'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface ApiResponse<T = any> {
+  code: number;
+  message: string;
+  data: T;
+}
 
 // API is running on port 3000
 const apiClient = axios.create({
@@ -30,70 +37,41 @@ apiClient.interceptors.request.use(
   }
 )
 
-// --- 2. Response Interceptor ---
-// This runs AFTER a response is received.
 apiClient.interceptors.response.use(
-  // OnFulfilled: Any 2xx status code
-  response => {
-    // We only care about the data, so we return it directly.
-    // This stops you from having to do 'response.data' in your code.
+  // On Success (2xx)
+  (response: AxiosResponse) => {
+    // Return ONLY the data (code, message, data)
     return response.data
   },
-  // OnRejected: Any non-2xx status code
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (error: AxiosError<any>) => {
-    // This is the "throw it quickly" part you wanted.
+
+  // On Error (Non-2xx)
+  (error: AxiosError) => {
     console.error('API Error:', error.response?.data || error.message)
 
-    if (error.response) {
-      // The server responded with an error (e.g., 400, 401, 409).
-      // We "throw" the backend's specific error object.
-      // Your 'try/catch' block will receive 'error.response.data'.
-      return Promise.reject(error.response.data)
-    } else if (error.request) {
-      // The request was made but no response was received
-      // (e.g., server is down, network error).
-      return Promise.reject({ message: 'Network error or server is down.' })
-    } else {
-      // Something else bad happened (e.g., config error)
-      return Promise.reject({ message: error.message })
-    }
-  }
-)
-
-// NEW: Response Interceptor
-apiClient.interceptors.response.use(
-  response => {
-    // If the response is successful (2xx), just return the data
-    return response
-  },
-  error => {
-    // If the response failed
-    if (error && error.code === 401) {
-      // check the lock, if it already redirects, ignoring the next 401 error
+    // Handle 401 (Unauthorized) logic
+    if (error.response?.status === 401) {
       if (!isRedirecting) {
-        isRedirecting = true // enable lock
-
-        // 1. Clear the invalid/expired token
+        isRedirecting = true
         toast.error('Authentication Failed', {
-          position: 'top-center',
           description: 'Token expired. Please log in again.',
-          duration: 2000 // Optional: ensure it stays long enough
+          duration: 2000
         })
-
         localStorage.removeItem('token')
 
-        // 2. Force redirect to login page
-        // Note: We use window.location.href instead of useNavigate because
-        // this file is not a React component. This also clears React state memory.
         if (window.location.pathname !== '/login') {
           setTimeout(() => {
             window.location.href = '/login'
-          }, 1500) // 1.5s delay to let them read the red toast
+          }, 1500)
         }
       }
     }
-    return Promise.reject(error)
+
+    // Return the actual backend error message if available
+    if (error.response && error.response.data) {
+      return Promise.reject(error.response.data)
+    }
+
+    return Promise.reject({ message: error.message || 'Network Error' })
   }
 )
 
@@ -116,7 +94,12 @@ export const listApi = {
 }
 
 export const cardApi = {
-  create: (data: { title: string; listId: number; description?: string }) => apiClient.post(API.createCard, data)
+  create: (data: { title: string; listId: number; description?: string }) => apiClient.post(API.createCard, data),
+  reorder: (data: { cardId: number; targetListId: number; newOrder: number }) => 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    apiClient.patch<any, ApiResponse>(API.reorderCards, data),
+
+  toggleStatus: (cardId: number) => apiClient.patch(API.toggleCard(cardId))
 }
 
 // We also export the default client.

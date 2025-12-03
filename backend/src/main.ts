@@ -1,8 +1,11 @@
 import { NestFactory } from '@nestjs/core';
+import { types } from 'pg';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+
+// 1700 is the OID for NUMERIC/DECIMAL in Postgres
+types.setTypeParser(1700, (val) => parseFloat(val));
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -10,9 +13,6 @@ async function bootstrap() {
 
   // Enable validation globally
   app.useGlobalPipes(new ValidationPipe());
-
-  // Enable global response transformation
-  app.useGlobalInterceptors(new TransformInterceptor());
 
   // Enable global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());

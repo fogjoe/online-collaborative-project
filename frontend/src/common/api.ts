@@ -5,8 +5,9 @@ const API = {
   getListsByProject: (projectId: number) => `/lists/project/${projectId}`,
   createList: '/lists',
   createCard: '/cards',
-  deleteProject: (projectId: number) => `/projects/${projectId}` 
-  // You can add other auth-related endpoints here
+  deleteProject: (projectId: number) => `/projects/${projectId}`,
+  reorderCards: '/cards/reorder',
+  toggleCard: (cardId: number) => `/cards/${cardId}/toggle`,
 }
 
 export default API
