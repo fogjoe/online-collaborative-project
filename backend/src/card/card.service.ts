@@ -5,6 +5,7 @@ import { CreateCardDto } from './dto/create-card.dto';
 import { Card } from './entities/card.entity';
 import { List } from '../list/entities/list.entity';
 import { ReorderCardDto } from './dto/reorder-card.dto';
+import { UpdateCardDto } from './dto/update-card.dto';
 
 @Injectable()
 export class CardService {
@@ -89,5 +90,29 @@ export class CardService {
 
     card.isCompleted = !card.isCompleted;
     return this.cardRepository.save(card);
+  }
+
+  async update(id: number, updateCardDto: UpdateCardDto) {
+    const card = await this.cardRepository.findOneBy({ id });
+
+    if (!card) {
+      throw new NotFoundException(`Card with ID ${id} not found`);
+    }
+
+    // Merge the updates into the existing card
+    // properties in dto will overwrite card properties
+    const updatedCard = this.cardRepository.merge(card, updateCardDto);
+
+    return this.cardRepository.save(updatedCard);
+  }
+
+  async remove(id: number) {
+    const result = await this.cardRepository.delete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`Card with ID ${id} not found`);
+    }
+
+    return { message: 'Card deleted successfully' };
   }
 }

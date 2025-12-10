@@ -8,6 +8,8 @@ const API = {
   deleteProject: (projectId: number) => `/projects/${projectId}`,
   reorderCards: '/cards/reorder',
   toggleCard: (cardId: number) => `/cards/${cardId}/toggle`,
+  updateCard: (cardId: number) => `/cards/${cardId}`,
+  deleteCard: (cardId: number) => `/cards/${cardId}`,
 }
 
 export default API

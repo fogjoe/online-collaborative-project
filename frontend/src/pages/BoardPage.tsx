@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { EditCardDialog } from '@/components/board/EditCardDialog'
 import { Button } from '@/components/ui/button'
 import { Share2, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
@@ -73,6 +74,9 @@ export const BoardPage = () => {
   const [addingCardToListId, setAddingCardToListId] = useState<number | null>(null)
   const [newCardTitle, setNewCardTitle] = useState('')
   const [newCardDesc, setNewCardDesc] = useState('')
+
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   // --- 1. Fetch Data ---
   useEffect(() => {
@@ -236,6 +240,53 @@ export const BoardPage = () => {
     })
   }
 
+  // --- 6. Edit Card Logic ---
+  const handleUpdateCard = async (cardId: number, data: { title: string; description: string }) => {
+    // Optimistic Update
+    setCardsByListId(prev => {
+      const newMap = { ...prev }
+      // We have to find which list this card belongs to
+      for (const listId in newMap) {
+        newMap[listId] = newMap[listId].map(c => (c.id === cardId ? { ...c, ...data } : c))
+      }
+      return newMap
+    })
+
+    // API Call
+    try {
+      await cardApi.update(cardId, data)
+      toast.success('Card updated')
+    } catch {
+      toast.error('Failed to update card')
+      // Ideally revert state here...
+    }
+  }
+
+  // --- 7. Delete Card Logic ---
+  const handleDeleteCard = async (cardId: number) => {
+    // Optimistic Update
+    setCardsByListId(prev => {
+      const newMap = { ...prev }
+      for (const listId in newMap) {
+        newMap[listId] = newMap[listId].filter(c => c.id !== cardId)
+      }
+      return newMap
+    })
+
+    // API Call
+    try {
+      await cardApi.delete(cardId)
+      toast.success('Card deleted')
+    } catch {
+      toast.error('Failed to delete card')
+    }
+  }
+
+  const openEditModal = (card: Card) => {
+    setSelectedCard(card)
+    setIsEditModalOpen(true)
+  }
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-full bg-[#F3F4F6]">
@@ -284,6 +335,7 @@ export const BoardPage = () => {
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
+                                  onClick={() => openEditModal(card)}
                                   style={{ ...provided.draggableProps.style }}
                                   className={`
                                     bg-white p-5 rounded-xl border border-transparent group relative flex-shrink-0
@@ -300,7 +352,10 @@ export const BoardPage = () => {
                                   {/* Actions */}
                                   <div className="flex justify-end mt-3 pt-2">
                                     <button
-                                      onClick={() => handleToggleCardStatus(card.id, card.isCompleted, numericListId)}
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        handleToggleCardStatus(card.id, card.isCompleted, numericListId)
+                                      }}
                                       className={`
                                         w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200
                                         border cursor-pointer hover:scale-110 active:scale-95
@@ -376,6 +431,7 @@ export const BoardPage = () => {
           </div>
         </DragDropContext>
       </div>
+      <EditCardDialog card={selectedCard} isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleUpdateCard} onDelete={handleDeleteCard} />
     </DashboardLayout>
   )
 }

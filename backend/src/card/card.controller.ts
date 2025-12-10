@@ -6,12 +6,14 @@ import {
   Patch,
   Param,
   ParseIntPipe,
+  Delete,
 } from '@nestjs/common';
 import { CardService } from './card.service';
 import { CreateCardDto } from './dto/create-card.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReorderCardDto } from './dto/reorder-card.dto';
 import { ResponseMessage } from 'src/common/decorators/response-message.decorator';
+import { UpdateCardDto } from './dto/update-card.dto';
 
 @Controller('cards')
 @UseGuards(JwtAuthGuard)
@@ -32,5 +34,18 @@ export class CardController {
   @Patch(':id/toggle')
   toggle(@Param('id', ParseIntPipe) id: number) {
     return this.cardService.toggle(id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCardDto: UpdateCardDto,
+  ) {
+    return this.cardService.update(id, updateCardDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.cardService.remove(id);
   }
 }

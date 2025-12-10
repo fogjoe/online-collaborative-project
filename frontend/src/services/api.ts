@@ -5,9 +5,9 @@ import { toast } from 'sonner'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ApiResponse<T = any> {
-  code: number;
-  message: string;
-  data: T;
+  code: number
+  message: string
+  data: T
 }
 
 // API is running on port 3000
@@ -95,11 +95,14 @@ export const listApi = {
 
 export const cardApi = {
   create: (data: { title: string; listId: number; description?: string }) => apiClient.post(API.createCard, data),
-  reorder: (data: { cardId: number; targetListId: number; newOrder: number }) => 
+  reorder: (data: { cardId: number; targetListId: number; newOrder: number }) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     apiClient.patch<any, ApiResponse>(API.reorderCards, data),
 
-  toggleStatus: (cardId: number) => apiClient.patch(API.toggleCard(cardId))
+  toggleStatus: (cardId: number) => apiClient.patch(API.toggleCard(cardId)),
+  update: (cardId: number, data: { title?: string; description?: string }) => apiClient.patch(API.updateCard(cardId), data),
+
+  delete: (cardId: number) => apiClient.delete(API.deleteCard(cardId))
 }
 
 // We also export the default client.
