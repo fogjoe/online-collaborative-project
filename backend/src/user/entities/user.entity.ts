@@ -4,8 +4,10 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  ManyToMany,
 } from 'typeorm';
 import { Project } from '../../project/entities/project.entity';
+import { Card } from 'src/card/entities/card.entity';
 
 @Entity({ name: 'users' }) // This MUST match your lowercase table name
 export class User {
@@ -27,4 +29,11 @@ export class User {
   // A User can have many Projects
   @OneToMany(() => Project, (project) => project.owner)
   projects: Project[];
+
+  @ManyToMany(() => Project, (project) => project.members)
+  memberProjects: Project[];
+
+  // New: Cards assigned to me
+  @ManyToMany(() => Card, (card) => card.assignees)
+  assignedCards: Card[];
 }

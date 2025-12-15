@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ConfigService } from '@nestjs/config';
+import { AddMemberDto } from './dto/add-member.dto';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard) //  Only logged in users can access
@@ -73,5 +74,13 @@ export class ProjectController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.projectService.remove(id, req.user);
+  }
+
+  @Post(':id/members')
+  addMember(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() addMemberDto: AddMemberDto,
+  ) {
+    return this.projectService.addMember(id, addMemberDto);
   }
 }

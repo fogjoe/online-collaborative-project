@@ -50,7 +50,7 @@ export class ListService {
   async findAllByProject(projectId: number) {
     return this.listRepository.find({
       where: { project: { id: projectId } },
-      relations: ['cards'], // Load cards automatically
+      relations: ['cards', 'cards.assignees'], // Load cards automatically
       order: {
         order: 'ASC', // Sort lists by order
         cards: {

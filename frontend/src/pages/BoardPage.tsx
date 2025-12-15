@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { EditCardDialog } from '@/components/board/EditCardDialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Share2, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,12 +15,20 @@ enum ListStatus {
   DONE = 'DONE'
 }
 
+export interface User {
+  id: number
+  username: string
+  email: string
+  avatarUrl?: string
+}
+
 export interface Card {
   id: number
   title: string
   description?: string
   order: number
   isCompleted: boolean
+  assignees: User[]
 }
 
 // The raw List object from the DB
@@ -287,6 +296,15 @@ export const BoardPage = () => {
     setIsEditModalOpen(true)
   }
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-full bg-[#F3F4F6]">
@@ -350,7 +368,21 @@ export const BoardPage = () => {
                                   </div>
 
                                   {/* Actions */}
-                                  <div className="flex justify-end mt-3 pt-2">
+                                  <div className="flex justify-between items-center pt-3">
+                                    <div className="flex -space-x-2.5 overflow-hidden py-1 pl-1">
+                                      {' '}
+                                      {/* Added padding so shadow doesn't get cut off */}
+                                      {card.assignees &&
+                                        card.assignees.map(user => (
+                                          <Avatar key={user.id} className="h-8 w-8 border-2 border-white ring-2 ring-slate-100 shadow-sm transition-transform hover:z-10 hover:-translate-y-0.5">
+                                            <AvatarImage src={user.avatarUrl} className="object-cover" />
+                                            <AvatarFallback className="flex items-center justify-center bg-gradient-to-br from-teal-400 to-[#0F766E] text-white text-xs font-bold">
+                                              {getInitials(user.username)}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        ))}
+                                    </div>
+
                                     <button
                                       onClick={e => {
                                         e.stopPropagation()

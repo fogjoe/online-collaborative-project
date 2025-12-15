@@ -6,12 +6,15 @@ import { Project } from './entities/project.entity';
 import { User } from '../user/entities/user.entity';
 import { List } from 'src/list/entities/list.entity';
 import { ListStatus } from 'src/list/enums/list-status.enum';
+import { AddMemberDto } from './dto/add-member.dto';
 
 @Injectable()
 export class ProjectService {
   constructor(
     @InjectRepository(Project)
     private projectRepository: Repository<Project>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private dataSource: DataSource,
   ) {}
 
@@ -86,5 +89,43 @@ export class ProjectService {
     }
 
     return this.projectRepository.remove(project);
+  }
+
+  // Add Member by Email
+  async addMember(projectId: number, addMemberDto: AddMemberDto) {
+    const { email } = addMemberDto;
+
+    // 1. Find the Project (and load existing members)
+    const project = await this.projectRepository.findOne({
+      where: { id: projectId },
+      relations: ['members'], // Important!
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // 2. Find the User to invite
+    const userToAdd = await this.userRepository.findOneBy({ email });
+
+    if (!userToAdd) {
+      throw new NotFoundException('User with this email does not exist');
+    }
+
+    // 3. Check if already a member
+    const isAlreadyMember = project.members.some(
+      (member) => member.id === userToAdd.id,
+    );
+
+    if (isAlreadyMember) {
+      // Option: Throw error or just return success (idempotent)
+      return { message: 'User is already a member', project };
+    }
+
+    // 4. Add User and Save
+    project.members.push(userToAdd);
+    await this.projectRepository.save(project);
+
+    return { message: 'Member added successfully', member: userToAdd };
   }
 }

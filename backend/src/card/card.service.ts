@@ -6,6 +6,8 @@ import { Card } from './entities/card.entity';
 import { List } from '../list/entities/list.entity';
 import { ReorderCardDto } from './dto/reorder-card.dto';
 import { UpdateCardDto } from './dto/update-card.dto';
+import { User } from 'src/user/entities/user.entity';
+import { AssignUserDto } from './dto/assign-user.dto';
 
 @Injectable()
 export class CardService {
@@ -14,6 +16,8 @@ export class CardService {
     private cardRepository: Repository<Card>,
     @InjectRepository(List)
     private listRepository: Repository<List>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   async create(createCardDto: CreateCardDto) {
@@ -114,5 +118,47 @@ export class CardService {
     }
 
     return { message: 'Card deleted successfully' };
+  }
+
+  // Assign a User to a Card
+  async assignMember(cardId: number, dto: AssignUserDto) {
+    const { userId } = dto;
+
+    // 1. Find Card with existing assignees
+    const card = await this.cardRepository.findOne({
+      where: { id: cardId },
+      relations: ['assignees'],
+    });
+
+    if (!card) throw new NotFoundException('Card not found');
+
+    // 2. Find User
+    const user = await this.userRepository.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException('User not found');
+
+    // 3. Check if already assigned
+    const isAssigned = card.assignees.some((a) => a.id === user.id);
+    if (isAssigned) {
+      return { message: 'User already assigned', card };
+    }
+
+    // 4. Add and Save
+    card.assignees.push(user);
+    return this.cardRepository.save(card);
+  }
+
+  // Unassign a User from a Card
+  async removeMember(cardId: number, userId: number) {
+    const card = await this.cardRepository.findOne({
+      where: { id: cardId },
+      relations: ['assignees'],
+    });
+
+    if (!card) throw new NotFoundException('Card not found');
+
+    // Filter out the user
+    card.assignees = card.assignees.filter((u) => u.id !== userId);
+
+    return this.cardRepository.save(card);
   }
 }

@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReorderCardDto } from './dto/reorder-card.dto';
 import { ResponseMessage } from 'src/common/decorators/response-message.decorator';
 import { UpdateCardDto } from './dto/update-card.dto';
+import { AssignUserDto } from './dto/assign-user.dto';
 
 @Controller('cards')
 @UseGuards(JwtAuthGuard)
@@ -47,5 +48,22 @@ export class CardController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.cardService.remove(id);
+  }
+
+  @Post(':id/assign')
+  assignMember(
+    @Param('id', ParseIntPipe) cardId: number,
+    @Body() dto: AssignUserDto,
+  ) {
+    return this.cardService.assignMember(cardId, dto);
+  }
+
+  // Unassign User
+  @Delete(':id/assign/:userId')
+  removeMember(
+    @Param('id', ParseIntPipe) cardId: number,
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
+    return this.cardService.removeMember(cardId, userId);
   }
 }
