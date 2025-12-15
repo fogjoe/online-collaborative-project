@@ -85,7 +85,10 @@ export const authApi = {
 export const projectApi = {
   getAll: () => apiClient.get(API.projects),
   create: (data: { name: string; description?: string }) => apiClient.post(API.projects, data),
-  delete: (id: number) => apiClient.delete(API.deleteProject(id))
+  delete: (id: number) => apiClient.delete(API.deleteProject(id)),
+  getDetailById: (id: number) => apiClient.get(API.projectDetails(id)),
+  addMember: (projectId: number, email: string) => 
+    apiClient.post(API.addMember(projectId), { email }),
 }
 
 export const listApi = {
@@ -102,7 +105,13 @@ export const cardApi = {
   toggleStatus: (cardId: number) => apiClient.patch(API.toggleCard(cardId)),
   update: (cardId: number, data: { title?: string; description?: string }) => apiClient.patch(API.updateCard(cardId), data),
 
-  delete: (cardId: number) => apiClient.delete(API.deleteCard(cardId))
+  delete: (cardId: number) => apiClient.delete(API.deleteCard(cardId)),
+
+  assign: (cardId: number, userId: number) => 
+    apiClient.post(API.assignCard(cardId), { userId }),
+  
+  unassign: (cardId: number, userId: number) => 
+    apiClient.delete(API.unassignCard(cardId, userId)),
 }
 
 // We also export the default client.

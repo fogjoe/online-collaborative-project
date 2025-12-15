@@ -128,4 +128,17 @@ export class ProjectService {
 
     return { message: 'Member added successfully', member: userToAdd };
   }
+
+  async findOne(id: number) {
+    const project = await this.projectRepository.findOne({
+      where: { id },
+      relations: ['members'],
+    });
+
+    if (!project) {
+      throw new NotFoundException(`Project #${id} not found`);
+    }
+
+    return project;
+  }
 }

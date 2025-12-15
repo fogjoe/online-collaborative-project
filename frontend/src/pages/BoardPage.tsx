@@ -5,9 +5,10 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { EditCardDialog } from '@/components/board/EditCardDialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Share2, Plus, Check } from 'lucide-react'
+import { Plus, Check, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
-import { listApi, cardApi } from '@/services/api'
+import { listApi, cardApi, projectApi } from '@/services/api'
+import { InviteMemberDialog } from '@/components/board/InviteMemberDialog'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -87,6 +88,10 @@ export const BoardPage = () => {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
+  const [members, setMembers] = useState<User[]>([])
+
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
+
   // --- 1. Fetch Data ---
   useEffect(() => {
     if (!projectId) return
@@ -109,6 +114,12 @@ export const BoardPage = () => {
         console.error('Failed to fetch board', error)
         toast.error('Failed to load board data')
       })
+
+    projectApi.getDetailById(projectId).then(res => {
+      if (res.data && res.data.members) {
+        setMembers(res.data.members)
+      }
+    })
   }, [projectId])
 
   // --- 2. Construct UI Columns ---
@@ -305,16 +316,81 @@ export const BoardPage = () => {
       .slice(0, 2)
   }
 
+  const handleAssignMember = async (cardId: number, userId: number) => {
+    // Optimistic Update
+    setCardsByListId(prev => {
+      const newMap = { ...prev }
+      for (const listId in newMap) {
+        newMap[listId] = newMap[listId].map(c => {
+          if (c.id === cardId) {
+            // Find the user object from our 'members' state
+            const userToAdd = members.find(m => m.id === userId)
+            if (userToAdd && !c.assignees.some(a => a.id === userId)) {
+              return { ...c, assignees: [...c.assignees, userToAdd] }
+            }
+          }
+          return c
+        })
+      }
+      return newMap
+    })
+
+    // API Call
+    await cardApi.assign(cardId, userId)
+  }
+
+  const handleUnassignMember = async (cardId: number, userId: number) => {
+    // Optimistic Update
+    setCardsByListId(prev => {
+      const newMap = { ...prev }
+      for (const listId in newMap) {
+        newMap[listId] = newMap[listId].map(c => (c.id === cardId ? { ...c, assignees: c.assignees.filter(u => u.id !== userId) } : c))
+      }
+      return newMap
+    })
+
+    // API Call
+    await cardApi.unassign(cardId, userId)
+  }
+
+  const handleInviteUser = async (email: string) => {
+    if (!projectId) return
+    try {
+      await projectApi.addMember(Number(projectId), email)
+      toast.success('Invitation sent successfully')
+
+      // Refresh member list so they show up in dropdowns immediately
+      const res = await projectApi.getDetailById(Number(projectId))
+      if (res.data && res.data.members) {
+        setMembers(res.data.members)
+      }
+    } catch {
+      toast.error('Failed to invite user. Check if email exists.')
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-full bg-[#F3F4F6]">
         {/* Header */}
         <div className="flex-none px-8 py-8 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Website Redesign Sprint</h1>
-          <Button className="bg-[#0F766E] hover:bg-[#0d655e] text-white gap-2 rounded-lg px-6 shadow-sm h-10">
+          {/* <Button className="bg-[#0F766E] hover:bg-[#0d655e] text-white gap-2 rounded-lg px-6 shadow-sm h-10">
             <Share2 size={18} /> Share
-          </Button>
+          </Button> */}
+          <div className="flex -space-x-2 ml-4">
+            {members.slice(0, 5).map(m => (
+              <div key={m.id} className="h-8 w-8 rounded-full ring-2 ring-white bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                {m.username.substring(0, 2).toUpperCase()}
+              </div>
+            ))}
+          </div>
         </div>
+
+        <Button onClick={() => setIsInviteModalOpen(true)} className="bg-slate-900 hover:bg-slate-800 text-white gap-2">
+          <UserPlus size={16} />
+          Invite Member
+        </Button>
 
         {/* Kanban Board Container */}
         <DragDropContext onDragEnd={onDragEnd}>
@@ -463,7 +539,18 @@ export const BoardPage = () => {
           </div>
         </DragDropContext>
       </div>
-      <EditCardDialog card={selectedCard} isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleUpdateCard} onDelete={handleDeleteCard} />
+      <EditCardDialog
+        card={selectedCard}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleUpdateCard}
+        onDelete={handleDeleteCard}
+        projectMembers={members}
+        onAssign={handleAssignMember}
+        onUnassign={handleUnassignMember}
+      />
+
+      <InviteMemberDialog isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} onInvite={handleInviteUser} />
     </DashboardLayout>
   )
 }

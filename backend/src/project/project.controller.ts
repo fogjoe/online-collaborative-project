@@ -83,4 +83,9 @@ export class ProjectController {
   ) {
     return this.projectService.addMember(id, addMemberDto);
   }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.projectService.findOne(id);
+  }
 }
