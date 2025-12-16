@@ -69,7 +69,8 @@ export class ProjectService {
   // Find all projects of the current user
   async findAllByUser(user: User) {
     return this.projectRepository.find({
-      where: { owner: { id: user.id } },
+      where: [{ owner: { id: user.id } }, { members: { id: user.id } }],
+      relations: ['owner'],
       order: { createdAt: 'DESC' },
     });
   }
