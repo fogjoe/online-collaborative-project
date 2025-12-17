@@ -5,9 +5,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Project } from './entities/project.entity';
 import { AuthModule } from 'src/auth/auth.module';
 import { User } from 'src/user/entities/user.entity';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Project, User]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([Project, User]),
+    AuthModule,
+    NotificationModule,
+  ],
   controllers: [ProjectController],
   providers: [ProjectService],
 })

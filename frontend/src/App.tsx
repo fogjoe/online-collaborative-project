@@ -7,6 +7,7 @@ import React from 'react' // Import React
 import { DashboardPage } from './pages/DashboardPage'
 import { Toaster } from '@/components/ui/sonner'
 import { BoardPage } from './pages/BoardPage'
+import { NotificationPage } from './pages/NotificationPage'
 
 // Type the props for PrivateRoute
 interface PrivateRouteProps {
@@ -48,6 +49,8 @@ function App() {
 
           {/* Redirect root to dashboard or login */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          <Route path="/notifications" element={<NotificationPage />} />
         </Routes>
       </BrowserRouter>
       <Toaster />

@@ -12,6 +12,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     ProjectModule,
     ListModule,
     CardModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

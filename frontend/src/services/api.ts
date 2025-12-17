@@ -114,6 +114,11 @@ export const cardApi = {
     apiClient.delete(API.unassignCard(cardId, userId)),
 }
 
+export const notificationApi = {
+  getAll: () => apiClient.get(API.getNotifications),
+  markRead: (id: number) => apiClient.patch(API.markNotificationRead(id)),
+}
+
 // We also export the default client.
 // This lets other "api" files (like 'projectApi.ts')
 // import this pre-configured client.

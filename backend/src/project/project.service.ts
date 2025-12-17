@@ -7,6 +7,7 @@ import { User } from '../user/entities/user.entity';
 import { List } from 'src/list/entities/list.entity';
 import { ListStatus } from 'src/list/enums/list-status.enum';
 import { AddMemberDto } from './dto/add-member.dto';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class ProjectService {
@@ -16,6 +17,7 @@ export class ProjectService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private dataSource: DataSource,
+    private notificationsService: NotificationService,
   ) {}
 
   // When creating a project, we now use a Transaction to ensure lists are created too
@@ -126,6 +128,12 @@ export class ProjectService {
     // 4. Add User and Save
     project.members.push(userToAdd);
     await this.projectRepository.save(project);
+
+    await this.notificationsService.create(
+      userToAdd,
+      `You have been invited to join the project: "${project.name}"`,
+      project.id,
+    );
 
     return { message: 'Member added successfully', member: userToAdd };
   }

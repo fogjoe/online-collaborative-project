@@ -13,7 +13,9 @@ const API = {
   updateCard: (cardId: number) => `/cards/${cardId}`,
   deleteCard: (cardId: number) => `/cards/${cardId}`,
   assignCard: (cardId: number) => `/cards/${cardId}/assign`,
-  unassignCard: (cardId: number, userId: number) => `/cards/${cardId}/assign/${userId}`
+  unassignCard: (cardId: number, userId: number) => `/cards/${cardId}/assign/${userId}`,
+  getNotifications: '/notifications',
+  markNotificationRead: (id: number) => `/notifications/${id}/read`
 }
 
 export default API

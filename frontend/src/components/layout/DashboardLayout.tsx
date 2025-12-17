@@ -33,7 +33,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <nav className="flex-1 px-4 space-y-2 mt-4">
           <NavItem icon={<LayoutDashboard size={20} />} label="All Projects" active={isActive('/dashboard')} onClick={() => navigate('/dashboard')} />
           {/* Mock links to match image */}
-          <NavItem icon={<Bell size={20} />} label="Notifications" active={false} onClick={() => {}} />
+          <NavItem icon={<Bell size={20} />} label="Notifications" active={false} onClick={() => navigate('/notifications')} />
           <NavItem icon={<User size={20} />} label="Profile" active={false} onClick={() => {}} />
         </nav>
 
