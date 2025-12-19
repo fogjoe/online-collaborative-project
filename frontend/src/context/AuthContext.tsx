@@ -3,7 +3,7 @@ import { createContext, useState, ReactNode } from 'react'
 // 1. Define the shape of the context data
 interface AuthContextType {
   token: string | null
-  login: (newToken: string) => void
+  login: (newToken: string, newData: unknown) => void
   logout: () => void
 }
 
@@ -23,14 +23,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return localStorage.getItem('token') // Load token from storage on init
   })
 
-  const login = (newToken: string) => {
+  const login = (newToken: string, newData: unknown) => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+
     setToken(newToken)
     localStorage.setItem('token', newToken)
+    if (newData) {
+      localStorage.setItem('user', JSON.stringify(newData))
+    }
   }
 
   const logout = () => {
     setToken(null)
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
   return <AuthContext.Provider value={{ token, login, logout }}>{children}</AuthContext.Provider>

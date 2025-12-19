@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { Toaster } from '@/components/ui/sonner'
 import { BoardPage } from './pages/BoardPage'
 import { NotificationPage } from './pages/NotificationPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 // Type the props for PrivateRoute
 interface PrivateRouteProps {
@@ -51,6 +52,7 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
           <Route path="/notifications" element={<NotificationPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </BrowserRouter>
       <Toaster />

@@ -9,7 +9,7 @@ import {
 import { Project } from '../../project/entities/project.entity';
 import { Card } from 'src/card/entities/card.entity';
 
-@Entity({ name: 'users' }) // This MUST match your lowercase table name
+@Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -36,4 +36,7 @@ export class User {
   // New: Cards assigned to me
   @ManyToMany(() => Card, (card) => card.assignees)
   assignedCards: Card[];
+
+  @Column({ nullable: true })
+  avatarUrl: string;
 }

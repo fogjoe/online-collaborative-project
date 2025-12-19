@@ -23,10 +23,20 @@ export const LoginPage = () => {
     try {
       const hashedPassword = await hashSha256(password)
       const response = await authApi.login({ email, password: hashedPassword })
-      login(response.data.accessToken)
+
+      const responseBody = response.data || response
+      const responseData = responseBody.data || responseBody
+
+      const accessToken = responseData.accessToken
+      const user = responseData.user
+
+      if (!accessToken) {
+        throw new Error('No access token received')
+      }
+
+      login(accessToken, user)
       navigate('/dashboard')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Invalid credentials.')
       console.log('Login error:', err)
     } finally {

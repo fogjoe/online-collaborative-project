@@ -87,8 +87,7 @@ export const projectApi = {
   create: (data: { name: string; description?: string }) => apiClient.post(API.projects, data),
   delete: (id: number) => apiClient.delete(API.deleteProject(id)),
   getDetailById: (id: number) => apiClient.get(API.projectDetails(id)),
-  addMember: (projectId: number, email: string) => 
-    apiClient.post(API.addMember(projectId), { email }),
+  addMember: (projectId: number, email: string) => apiClient.post(API.addMember(projectId), { email })
 }
 
 export const listApi = {
@@ -107,16 +106,19 @@ export const cardApi = {
 
   delete: (cardId: number) => apiClient.delete(API.deleteCard(cardId)),
 
-  assign: (cardId: number, userId: number) => 
-    apiClient.post(API.assignCard(cardId), { userId }),
-  
-  unassign: (cardId: number, userId: number) => 
-    apiClient.delete(API.unassignCard(cardId, userId)),
+  assign: (cardId: number, userId: number) => apiClient.post(API.assignCard(cardId), { userId }),
+
+  unassign: (cardId: number, userId: number) => apiClient.delete(API.unassignCard(cardId, userId))
 }
 
 export const notificationApi = {
   getAll: () => apiClient.get(API.getNotifications),
-  markRead: (id: number) => apiClient.patch(API.markNotificationRead(id)),
+  markRead: (id: number) => apiClient.patch(API.markNotificationRead(id))
+}
+
+export const userApi = {
+  getProfile: () => apiClient.get(API.profile),
+  updateProfile: (data: { username?: string; email?: string; avatarUrl?: string }) => apiClient.patch(API.profile, data)
 }
 
 // We also export the default client.

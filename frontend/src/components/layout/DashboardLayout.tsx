@@ -34,7 +34,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <NavItem icon={<LayoutDashboard size={20} />} label="All Projects" active={isActive('/dashboard')} onClick={() => navigate('/dashboard')} />
           {/* Mock links to match image */}
           <NavItem icon={<Bell size={20} />} label="Notifications" active={false} onClick={() => navigate('/notifications')} />
-          <NavItem icon={<User size={20} />} label="Profile" active={false} onClick={() => {}} />
+          <NavItem icon={<User size={20} />} label="Profile" active={false} onClick={() => navigate('/profile')} />
         </nav>
 
         {/* Logout */}

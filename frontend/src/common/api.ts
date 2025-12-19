@@ -15,7 +15,8 @@ const API = {
   assignCard: (cardId: number) => `/cards/${cardId}/assign`,
   unassignCard: (cardId: number, userId: number) => `/cards/${cardId}/assign/${userId}`,
   getNotifications: '/notifications',
-  markNotificationRead: (id: number) => `/notifications/${id}/read`
+  markNotificationRead: (id: number) => `/notifications/${id}/read`,
+  profile: '/users/me'
 }
 
 export default API
