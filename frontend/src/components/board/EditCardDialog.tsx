@@ -86,97 +86,100 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      {/* Increased width to 700px to accommodate the sidebar layout */}
-      <DialogContent className="sm:max-w-[700px] bg-white shadow-2xl border-0 p-0 overflow-hidden gap-0">
+      {/* Give the dialog a sensible max height so the footer remains visible */}
+      <DialogContent className="sm:max-w-[700px] bg-white shadow-2xl border-0 p-0 overflow-hidden gap-0 flex flex-col max-h-[90vh]">
         {/* Header Section */}
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-xl font-bold text-slate-900">Edit Card</DialogTitle>
           <DialogDescription className="hidden">Edit card details</DialogDescription>
         </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-0">
-          {/* LEFT COLUMN: Main Content */}
-          <div className="p-6 pt-2 pr-6 md:border-r border-slate-100 flex flex-col gap-5">
-            {/* Title Input */}
-            <div className="grid gap-2">
-              <Label htmlFor="title" className="text-sm font-semibold text-slate-700">
-                Card Title
-              </Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="font-medium text-base h-11 border-slate-200 focus-visible:ring-[#0F766E]"
-                placeholder="Enter title..."
-              />
-            </div>
-
-            {/* Description Input */}
-            <div className="grid gap-2">
-              <Label htmlFor="description" className="text-sm font-semibold text-slate-700">
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                className="min-h-[200px] resize-none text-slate-600 border-slate-200 focus-visible:ring-[#0F766E] text-sm leading-relaxed"
-                placeholder="Add more details about this task..."
-              />
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN: Sidebar (Metadata & Actions) */}
-          <div className="bg-slate-50/50 p-6 pt-2 space-y-6">
-            {/* ASSIGNEES SECTION */}
-            <div className="space-y-3">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assignees</Label>
-
-              {/* List of Assigned Users */}
-              <div className="flex flex-col gap-2">
-                {card.assignees.length === 0 && <span className="text-xs text-slate-400 italic">No members assigned</span>}
-
-                {card.assignees.map(user => (
-                  <div key={user.id} className="group flex items-center justify-between bg-white rounded-md p-2 pl-2 shadow-sm border border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={user.avatarUrl} />
-                        <AvatarFallback className="text-[9px] bg-[#0F766E] text-white">{getInitials(user.username)}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs font-medium text-slate-700 truncate max-w-[80px]">{user.username}</span>
-                    </div>
-                    <button onClick={() => onUnassign(card.id, user.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1" title="Remove member">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
+        <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-0 rounded-2xl border border-slate-100">
+            {/* LEFT COLUMN: Main Content */}
+            <div className="pt-3 pb-6 px-6 md:px-8 md:border-r border-slate-100 flex flex-col gap-5">
+              {/* Title Input */}
+              <div className="grid gap-2">
+                <Label htmlFor="title" className="text-sm font-semibold text-slate-700">
+                  Card Title
+                </Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  className="font-medium text-base h-11 border-slate-200 focus-visible:ring-[#0F766E]"
+                  placeholder="Enter title..."
+                />
               </div>
 
-              {/* Add Member Dropdown */}
-              <Select onValueChange={val => onAssign(card.id, Number(val))} disabled={unassignedMembers.length === 0}>
-                <SelectTrigger className="w-full h-9 text-xs bg-white border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E] transition-colors">
-                  <SelectValue placeholder={unassignedMembers.length > 0 ? '+ Add Member' : 'All members added'} />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {unassignedMembers.map(user => (
-                    <SelectItem key={user.id} value={user.id.toString()} className="text-xs cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-[8px] bg-slate-200">{getInitials(user.username)}</AvatarFallback>
-                        </Avatar>
-                        {user.username}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Description Input */}
+              <div className="grid gap-2">
+                <Label htmlFor="description" className="text-sm font-semibold text-slate-700">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  className="min-h-[200px] resize-none text-slate-600 border-slate-200 focus-visible:ring-[#0F766E] text-sm leading-relaxed"
+                  placeholder="Add more details about this task..."
+                />
+              </div>
             </div>
 
-            {/* Other sidebar items can go here (e.g., Due Date, Labels) */}
+            {/* RIGHT COLUMN: Sidebar (Metadata & Actions) */}
+            <div className="bg-slate-50/60 pt-3 pb-6 px-6 space-y-6">
+              {/* ASSIGNEES SECTION */}
+              <div className="space-y-3">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assignees</Label>
+
+                {/* List of Assigned Users */}
+                <div className="flex flex-col gap-2">
+                  {card.assignees.length === 0 && <span className="text-xs text-slate-400 italic">No members assigned</span>}
+
+                  {card.assignees.map(user => (
+                    <div key={user.id} className="group flex items-center justify-between bg-white rounded-md p-2 pl-2 shadow-sm border border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={user.avatarUrl} />
+                          <AvatarFallback className="text-[9px] bg-[#0F766E] text-white">{getInitials(user.username)}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs font-medium text-slate-700 truncate max-w-[110px]">{user.username}</span>
+                      </div>
+                      <button onClick={() => onUnassign(card.id, user.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1" title="Remove member">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Member Dropdown */}
+                <Select onValueChange={val => onAssign(card.id, Number(val))} disabled={unassignedMembers.length === 0}>
+                  <SelectTrigger className="w-full h-9 text-xs bg-white border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E] transition-colors">
+                    <SelectValue placeholder={unassignedMembers.length > 0 ? '+ Add Member' : 'All members added'} />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {unassignedMembers.map(user => (
+                      <SelectItem key={user.id} value={user.id.toString()} className="text-xs cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[8px] bg-slate-200">{getInitials(user.username)}</AvatarFallback>
+                          </Avatar>
+                          {user.username}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Other sidebar items can go here (e.g., Due Date, Labels) */}
+            </div>
+          </div>
+
+          <div className="pb-2">
+            <CardComments cardId={card.id} />
           </div>
         </div>
-
-        <CardComments cardId={card.id} />
 
         {/* Footer Actions */}
         <DialogFooter className="p-6 pt-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between sm:justify-between w-full">

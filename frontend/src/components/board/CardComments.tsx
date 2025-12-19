@@ -65,7 +65,7 @@ export const CardComments = ({ cardId }: CardCommentsProps) => {
   }
 
   return (
-    <div className="space-y-6 mt-6 pt-6 border-t border-slate-100">
+    <div className="space-y-5 mt-4 pt-5 border-t border-slate-100">
       <div className="flex items-center gap-2 text-slate-900 font-semibold">
         <MessageSquare size={18} />
         <h3>Activity & Comments</h3>
@@ -96,7 +96,7 @@ export const CardComments = ({ cardId }: CardCommentsProps) => {
       </div>
 
       {/* Comments List */}
-      <div className="space-y-6">
+      <div className="space-y-5">
         {comments.map(comment => (
           <div key={comment.id} className="flex gap-3 group">
             <Avatar className="h-8 w-8 mt-1">
