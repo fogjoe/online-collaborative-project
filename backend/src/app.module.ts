@@ -13,6 +13,7 @@ import { join } from 'path';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { NotificationModule } from './notification/notification.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   imports: [
@@ -42,6 +43,8 @@ import { NotificationModule } from './notification/notification.module';
     ListModule,
     CardModule,
     NotificationModule,
+    CommentsModule,
+    CommentsModule,
   ],
   controllers: [AppController],
   providers: [

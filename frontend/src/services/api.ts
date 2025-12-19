@@ -121,6 +121,11 @@ export const userApi = {
   updateProfile: (data: { username?: string; email?: string; avatarUrl?: string }) => apiClient.patch(API.profile, data)
 }
 
+export const commentApi = {
+  getComments: (cardId: number) => apiClient.get(API.getCommentsById(cardId)),
+  createComment: (cardId: number, content: string) => apiClient.post(API.getCommentsById(cardId), { content })
+}
+
 // We also export the default client.
 // This lets other "api" files (like 'projectApi.ts')
 // import this pre-configured client.

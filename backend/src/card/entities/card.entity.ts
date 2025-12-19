@@ -7,9 +7,11 @@ import {
   CreateDateColumn,
   ManyToMany,
   JoinTable,
+  OneToMany,
 } from 'typeorm';
 import { List } from '../../list/entities/list.entity';
 import { User } from 'src/user/entities/user.entity';
+import { Comment } from 'src/comments/entities/comment.entity';
 
 @Entity('cards')
 export class Card {
@@ -41,7 +43,7 @@ export class Card {
 
   @ManyToMany(() => User, (user) => user.assignedCards)
   @JoinTable({
-    name: 'card_assignees', // Name of the join table in DB
+    name: 'card_assignees',
     joinColumn: { name: 'card_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
   })
@@ -49,4 +51,7 @@ export class Card {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @OneToMany(() => Comment, (comment) => comment.card)
+  comments: Comment[];
 }
