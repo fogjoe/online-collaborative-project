@@ -33,6 +33,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const { passwordHash, ...result } = user;
 
     // The return value will be automatically put into request.user by NestJS
-    return result;
+    // Inject userId because controllers expect req.user.userId
+    return { userId: user.id, ...result };
   }
 }
+
