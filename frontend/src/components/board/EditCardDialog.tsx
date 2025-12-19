@@ -28,7 +28,6 @@ interface EditCardDialogProps {
   onSave: (cardId: number, data: { title: string; description: string }) => Promise<void>
   onDelete: (cardId: number) => Promise<void>
 
-  // ✅ New Props for Member Management
   projectMembers: User[]
   onAssign: (cardId: number, userId: number) => Promise<void>
   onUnassign: (cardId: number, userId: number) => Promise<void>

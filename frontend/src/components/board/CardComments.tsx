@@ -28,6 +28,13 @@ export const CardComments = ({ cardId }: CardCommentsProps) => {
   const [newComment, setNewComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Backend timestamps are returned as UTC without timezone info ("YYYY-MM-DD HH:mm:ss").
+  // Append a Z so Date treats them as UTC and then converts to the viewer's local time.
+  const toLocalDate = (value?: string) => {
+    if (!value) return new Date()
+    return new Date(value.endsWith('Z') ? value : `${value}Z`)
+  }
+
   // Load comments when component mounts
   useEffect(() => {
     loadComments()
@@ -51,11 +58,8 @@ export const CardComments = ({ cardId }: CardCommentsProps) => {
 
     setIsSubmitting(true)
     try {
-      const res = await commentApi.createComment(cardId, newComment)
-      const savedComment = res.data.data || res.data
-
-      // Add new comment to the top of the list
-      setComments([savedComment, ...comments])
+      await commentApi.createComment(cardId, newComment)
+      await loadComments()
       setNewComment('')
     } catch (error) {
       console.error('Failed to post comment', error)
@@ -107,7 +111,7 @@ export const CardComments = ({ cardId }: CardCommentsProps) => {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-semibold text-sm text-slate-900">{comment.user?.username || 'Unknown'}</span>
-                <span className="text-xs text-slate-400">{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
+                <span className="text-xs text-slate-400">{formatDistanceToNow(toLocalDate(comment.createdAt), { addSuffix: true })}</span>
               </div>
               <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded-r-lg rounded-bl-lg">{comment.content}</div>
             </div>
