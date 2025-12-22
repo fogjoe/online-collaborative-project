@@ -102,7 +102,8 @@ export const cardApi = {
     apiClient.patch<any, ApiResponse>(API.reorderCards, data),
 
   toggleStatus: (cardId: number) => apiClient.patch(API.toggleCard(cardId)),
-  update: (cardId: number, data: { title?: string; description?: string }) => apiClient.patch(API.updateCard(cardId), data),
+  update: (cardId: number, data: { title?: string; description?: string; labelIds?: number[] }) =>
+    apiClient.patch(API.updateCard(cardId), data),
 
   delete: (cardId: number) => apiClient.delete(API.deleteCard(cardId)),
 

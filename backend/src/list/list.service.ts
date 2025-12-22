@@ -48,15 +48,15 @@ export class ListService {
    * Get all lists for a project, including their cards.
    */
   async findAllByProject(projectId: number) {
-    return this.listRepository.find({
-      where: { project: { id: projectId } },
-      relations: ['cards', 'cards.assignees'], // Load cards automatically
-      order: {
-        order: 'ASC', // Sort lists by order
-        cards: {
-          order: 'ASC', // Sort cards inside list
-        },
-      },
-    });
+    return this.listRepository
+      .createQueryBuilder('list')
+      .leftJoin('list.project', 'project')
+      .leftJoinAndSelect('list.cards', 'card')
+      .leftJoinAndSelect('card.assignees', 'assignee')
+      .leftJoinAndSelect('card.labels', 'label')
+      .where('project.id = :projectId', { projectId })
+      .orderBy('list.order', 'ASC')
+      .addOrderBy('card.order', 'ASC')
+      .getMany();
   }
 }

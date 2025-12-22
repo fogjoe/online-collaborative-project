@@ -28,10 +28,11 @@ interface LabelPopoverProps {
   cardId: number
   projectId: number
   activeLabelIds: number[] // IDs of labels currently on this card
-  onUpdate: () => void // Callback to refresh card data
+  onUpdate: () => Promise<void> // Callback to refresh card data
+  onLabelToggle?: (label: Label, willActivate: boolean) => void
 }
 
-export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate }: LabelPopoverProps) => {
+export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate, onLabelToggle }: LabelPopoverProps) => {
   const [labels, setLabels] = useState<Label[]>([])
   const [search, setSearch] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -54,10 +55,12 @@ export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate }: La
     }
   }
 
-  const handleToggle = async (labelId: number) => {
+  const handleToggle = async (label: Label) => {
+    const willActivate = !activeLabelIds.includes(label.id)
     try {
-      await labelApi.toggleCardLabel(cardId, labelId)
-      onUpdate() // Refresh parent
+      await labelApi.toggleCardLabel(cardId, label.id)
+      onLabelToggle?.(label, willActivate)
+      await onUpdate() // Refresh parent
     } catch (error) {
       console.error('Failed to toggle label', error)
     }
@@ -80,39 +83,58 @@ export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate }: La
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 w-full justify-start text-slate-600">
-          <Tag size={16} />
-          Labels
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full h-9 justify-between text-xs font-semibold tracking-wide text-slate-600 border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]"
+        >
+          <span className="flex items-center gap-2">
+            <Tag size={15} />
+            Labels
+          </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-3 bg-white" align="start">
+      <PopoverContent className="w-72 p-4 bg-white rounded-xl shadow-xl border border-slate-100" align="start">
         {/* Header */}
-        <div className="text-sm font-semibold text-center mb-3 text-slate-700">Labels</div>
+        <div className="text-sm font-semibold text-slate-700 mb-3">Labels</div>
 
         {!isCreating ? (
           <>
-            <Input placeholder="Search labels..." value={search} onChange={e => setSearch(e.target.value)} className="mb-3 h-8 text-xs" />
+            <Input
+              placeholder="Search labels..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="mb-3 h-9 text-xs border-slate-200 focus-visible:ring-[#0F766E]"
+            />
 
-            <div className="space-y-1 max-h-[200px] overflow-y-auto mb-3">
+            <div className="space-y-2 max-h-[200px] overflow-y-auto mb-3 pr-1">
               {filteredLabels.map(label => {
                 const isActive = activeLabelIds.includes(label.id)
                 return (
-                  <div key={label.id} onClick={() => handleToggle(label.id)} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors group">
-                    <div className="flex-1">
-                      <LabelBadge
-                        color={label.color}
-                        name={label.name}
-                        className="h-6 text-xs px-3 w-full flex items-center shadow-none" 
-                      />
-                    </div>
+                  <button
+                    key={label.id}
+                    type="button"
+                    onClick={() => handleToggle(label)}
+                    className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors ${
+                      isActive ? 'border-[#0F766E]/40 bg-[#0F766E]/5' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <LabelBadge
+                      color={label.color}
+                      name={label.name}
+                      className="flex-1 justify-start text-[11px]"
+                    />
 
-                    {isActive && <Check size={16} className="text-slate-600" />}
-                  </div>
+                    {isActive && <Check size={16} className="text-[#0F766E]" />}
+                  </button>
                 )
               })}
+              {filteredLabels.length === 0 && (
+                <p className="text-xs text-slate-400 text-center py-6">No labels match your search.</p>
+              )}
             </div>
 
-            <Button variant="secondary" className="w-full h-8 text-xs" onClick={() => setIsCreating(true)}>
+            <Button variant="secondary" className="w-full h-9 text-xs" onClick={() => setIsCreating(true)}>
               <Plus size={14} className="mr-2" />
               Create a new label
             </Button>
@@ -120,7 +142,13 @@ export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate }: La
         ) : (
           /* Create Mode */
           <div className="space-y-3">
-            <Input placeholder="Label name" value={newLabelName} onChange={e => setNewLabelName(e.target.value)} autoFocus className="h-8" />
+            <Input
+              placeholder="Label name"
+              value={newLabelName}
+              onChange={e => setNewLabelName(e.target.value)}
+              autoFocus
+              className="h-9"
+            />
 
             <div className="grid grid-cols-4 gap-2">
               {COLORS.map(color => (
@@ -134,10 +162,10 @@ export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate }: La
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button variant="default" className="flex-1 h-8 text-xs bg-[#0F766E]" onClick={handleCreate} disabled={!newLabelName}>
+              <Button variant="default" className="flex-1 h-9 text-xs bg-[#0F766E]" onClick={handleCreate} disabled={!newLabelName}>
                 Create
               </Button>
-              <Button variant="ghost" className="h-8 text-xs" onClick={() => setIsCreating(false)}>
+              <Button variant="ghost" className="h-9 text-xs" onClick={() => setIsCreating(false)}>
                 Cancel
               </Button>
             </div>

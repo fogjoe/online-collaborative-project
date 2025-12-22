@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Plus, Check, UserPlus, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { listApi, cardApi, projectApi } from '@/services/api'
+import { LabelBadge } from '@/components/board/LabelBadge'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -226,10 +227,14 @@ export const BoardPage = () => {
     })
   }
 
-  const handleUpdateCard = async (cardId: number, data: { title: string; description: string }) => {
+  const handleUpdateCard = async (cardId: number, data: { title: string; description: string; labels: Label[] }) => {
     updateLocalCardState(cardId, c => ({ ...c, ...data }))
     try {
-      await cardApi.update(cardId, data)
+      await cardApi.update(cardId, {
+        title: data.title,
+        description: data.description,
+        labelIds: data.labels.map(label => label.id)
+      })
       toast.success('Card updated')
     } catch {
       toast.error('Failed to update card')
@@ -375,14 +380,23 @@ export const BoardPage = () => {
 
                                     {card.description && <p className={`text-[13px] line-clamp-2 ${card.isCompleted ? 'text-slate-300' : 'text-slate-500'}`}>{card.description}</p>}
 
-                                    <div className="flex justify-between items-center pt-2 mt-1 border-t border-slate-50">
-                                      <div className="flex -space-x-2">
-                                        {card.assignees?.map(user => (
-                                          <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
-                                            <AvatarImage src={user.avatarUrl} />
-                                            <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
-                                          </Avatar>
-                                        ))}
+                                    <div className="flex justify-between items-end pt-3 mt-2 border-t border-slate-50 gap-3">
+                                      <div className="flex flex-col gap-2">
+                                        {card.labels && card.labels.length > 0 && (
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {card.labels.map(label => (
+                                              <LabelBadge key={`${card.id}-${label.id}`} color={label.color} name={label.name} className="text-[10px] px-2 py-0.5 shadow-none" />
+                                            ))}
+                                          </div>
+                                        )}
+                                        <div className="flex -space-x-2">
+                                          {card.assignees?.map(user => (
+                                            <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
+                                              <AvatarImage src={user.avatarUrl} />
+                                              <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
+                                            </Avatar>
+                                          ))}
+                                        </div>
                                       </div>
 
                                       <button

@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsBoolean } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsArray,
+  IsInt,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateCardDto {
   @IsOptional()
@@ -12,4 +19,10 @@ export class UpdateCardDto {
   @IsOptional()
   @IsBoolean()
   isCompleted?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  labelIds?: number[];
 }

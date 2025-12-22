@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateCardDto } from './dto/create-card.dto';
 import { Card } from './entities/card.entity';
 import { List } from '../list/entities/list.entity';
@@ -19,6 +19,8 @@ export class CardService {
     private listRepository: Repository<List>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Label)
+    private labelRepository: Repository<Label>,
   ) {}
 
   async create(createCardDto: CreateCardDto) {
@@ -98,7 +100,11 @@ export class CardService {
   }
 
   async update(id: number, updateCardDto: UpdateCardDto) {
-    const card = await this.cardRepository.findOneBy({ id });
+    const { labelIds, ...partialData } = updateCardDto;
+    const card = await this.cardRepository.findOne({
+      where: { id },
+      relations: ['labels'],
+    });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${id} not found`);
@@ -106,7 +112,14 @@ export class CardService {
 
     // Merge the updates into the existing card
     // properties in dto will overwrite card properties
-    const updatedCard = this.cardRepository.merge(card, updateCardDto);
+    const updatedCard = this.cardRepository.merge(card, partialData);
+
+    if (labelIds !== undefined) {
+      const labels = labelIds.length
+        ? await this.labelRepository.findBy({ id: In(labelIds) })
+        : [];
+      updatedCard.labels = labels;
+    }
 
     return this.cardRepository.save(updatedCard);
   }

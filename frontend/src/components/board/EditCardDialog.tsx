@@ -28,7 +28,7 @@ interface EditCardDialogProps {
   card: CardType | null
   isOpen: boolean
   onClose: () => void
-  onSave: (cardId: number, data: { title: string; description: string }) => Promise<void>
+  onSave: (cardId: number, data: { title: string; description: string; labels: CardType['labels'] }) => Promise<void>
   onDelete: (cardId: number) => Promise<void>
 
   projectMembers: User[]
@@ -36,8 +36,10 @@ interface EditCardDialogProps {
   onUnassign: (cardId: number, userId: number) => Promise<void>
 
   projectId: number
-  onCardUpdate: () => void
+  onCardUpdate: () => Promise<void>
 }
+
+type CardLabel = CardType['labels'][number]
 
 // Helper to get initials (e.g., "John Doe" -> "JD")
 const getInitials = (name: string) => {
@@ -53,14 +55,26 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedLabels, setSelectedLabels] = useState<CardType['labels']>([])
 
   // Reset form when card changes
   useEffect(() => {
     if (card) {
       setTitle(card.title)
       setDescription(card.description || '')
+      setSelectedLabels(card.labels || [])
     }
   }, [card])
+
+  const handleLocalLabelToggle = (labelData: CardLabel, shouldAdd: boolean) => {
+    setSelectedLabels(prev => {
+      if (shouldAdd) {
+        if (prev.some(label => label.id === labelData.id)) return prev
+        return [...prev, labelData]
+      }
+      return prev.filter(label => label.id !== labelData.id)
+    })
+  }
 
   // Filter members who are NOT yet assigned to this card
   const unassignedMembers = card ? projectMembers.filter(m => !card.assignees.some(a => a.id === m.id)) : []
@@ -69,7 +83,8 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
     if (!card) return
     setIsLoading(true)
     try {
-      await onSave(card.id, { title, description })
+      await onSave(card.id, { title, description, labels: selectedLabels })
+      await onCardUpdate()
       onClose()
     } finally {
       setIsLoading(false)
@@ -103,13 +118,6 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
           <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-0 rounded-2xl border border-slate-100">
             {/* LEFT COLUMN: Main Content */}
             <div className="pt-3 pb-6 px-6 md:px-8 md:border-r border-slate-100 flex flex-col gap-5">
-              {card.labels && card.labels.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {card.labels.map(label => (
-                    <LabelBadge key={label.id} color={label.color} name={label.name} />
-                  ))}
-                </div>
-              )}
 
               {/* Title Input */}
               <div className="grid gap-2">
@@ -145,7 +153,22 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
               {/* ✅ 4. LABELS MANAGER POPOVER */}
               <div className="space-y-3">
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Labels</Label>
-                <LabelPopover cardId={card.id} projectId={projectId} activeLabelIds={card.labels?.map(l => l.id) || []} onUpdate={onCardUpdate} />
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 flex flex-wrap gap-2 min-h-[56px]">
+                  {selectedLabels.length > 0 ? (
+                    selectedLabels.map(label => (
+                      <LabelBadge key={`sidebar-${label.id}`} color={label.color} name={label.name} className="shadow-none" />
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">No labels selected</span>
+                  )}
+                </div>
+                <LabelPopover
+                  cardId={card.id}
+                  projectId={projectId}
+                  activeLabelIds={selectedLabels.map(l => l.id)}
+                  onUpdate={onCardUpdate}
+                  onLabelToggle={handleLocalLabelToggle}
+                />
               </div>
 
               {/* ASSIGNEES SECTION */}
