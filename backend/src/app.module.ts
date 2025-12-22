@@ -14,6 +14,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { NotificationModule } from './notification/notification.module';
 import { CommentsModule } from './comments/comments.module';
+import { LabelsModule } from './labels/labels.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { CommentsModule } from './comments/comments.module';
     NotificationModule,
     CommentsModule,
     CommentsModule,
+    LabelsModule,
   ],
   controllers: [AppController],
   providers: [

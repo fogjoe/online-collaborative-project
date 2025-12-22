@@ -8,6 +8,7 @@ import { ReorderCardDto } from './dto/reorder-card.dto';
 import { UpdateCardDto } from './dto/update-card.dto';
 import { User } from 'src/user/entities/user.entity';
 import { AssignUserDto } from './dto/assign-user.dto';
+import { Label } from 'src/labels/entities/label.entity';
 
 @Injectable()
 export class CardService {
@@ -158,6 +159,42 @@ export class CardService {
 
     // Filter out the user
     card.assignees = card.assignees.filter((u) => u.id !== userId);
+
+    return this.cardRepository.save(card);
+  }
+
+  async findOne(id: number) {
+    const card = await this.cardRepository.findOne({
+      where: { id },
+      relations: ['labels', 'assignees', 'comments', 'comments.user'],
+    });
+
+    if (!card) {
+      throw new NotFoundException(`Card with ID ${id} not found`);
+    }
+
+    return card;
+  }
+
+  async toggleLabel(cardId: number, labelId: number) {
+    const card = await this.cardRepository.findOne({
+      where: { id: cardId },
+      relations: ['labels', 'assignees', 'comments'],
+    });
+
+    if (!card) {
+      throw new NotFoundException(`Card with ID ${cardId} not found`);
+    }
+
+    const labelIndex = card.labels.findIndex((l) => l.id === labelId);
+
+    if (labelIndex > -1) {
+      // Remove if exists
+      card.labels.splice(labelIndex, 1);
+    } else {
+      // Add if not exists
+      card.labels.push({ id: labelId } as Label);
+    }
 
     return this.cardRepository.save(card);
   }

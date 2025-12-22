@@ -18,11 +18,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Card, User } from '@/pages/BoardPage'
+import { Card as CardType, User } from '@/pages/BoardPage' // Renamed to avoid confusion with UI Card
 import { CardComments } from './CardComments'
 
+import { LabelPopover } from './LabelPopover'
+import { LabelBadge } from './LabelBadge'
+
 interface EditCardDialogProps {
-  card: Card | null
+  card: CardType | null
   isOpen: boolean
   onClose: () => void
   onSave: (cardId: number, data: { title: string; description: string }) => Promise<void>
@@ -31,6 +34,9 @@ interface EditCardDialogProps {
   projectMembers: User[]
   onAssign: (cardId: number, userId: number) => Promise<void>
   onUnassign: (cardId: number, userId: number) => Promise<void>
+
+  projectId: number
+  onCardUpdate: () => void
 }
 
 // Helper to get initials (e.g., "John Doe" -> "JD")
@@ -43,7 +49,7 @@ const getInitials = (name: string) => {
     .slice(0, 2)
 }
 
-export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projectMembers, onAssign, onUnassign }: EditCardDialogProps) => {
+export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projectMembers, onAssign, onUnassign, projectId, onCardUpdate }: EditCardDialogProps) => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -92,10 +98,19 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
           <DialogTitle className="text-xl font-bold text-slate-900">Edit Card</DialogTitle>
           <DialogDescription className="hidden">Edit card details</DialogDescription>
         </DialogHeader>
+
         <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-0 rounded-2xl border border-slate-100">
             {/* LEFT COLUMN: Main Content */}
             <div className="pt-3 pb-6 px-6 md:px-8 md:border-r border-slate-100 flex flex-col gap-5">
+              {card.labels && card.labels.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {card.labels.map(label => (
+                    <LabelBadge key={label.id} color={label.color} name={label.name} />
+                  ))}
+                </div>
+              )}
+
               {/* Title Input */}
               <div className="grid gap-2">
                 <Label htmlFor="title" className="text-sm font-semibold text-slate-700">
@@ -127,6 +142,12 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
 
             {/* RIGHT COLUMN: Sidebar (Metadata & Actions) */}
             <div className="bg-slate-50/60 pt-3 pb-6 px-6 space-y-6">
+              {/* ✅ 4. LABELS MANAGER POPOVER */}
+              <div className="space-y-3">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Labels</Label>
+                <LabelPopover cardId={card.id} projectId={projectId} activeLabelIds={card.labels?.map(l => l.id) || []} onUpdate={onCardUpdate} />
+              </div>
+
               {/* ASSIGNEES SECTION */}
               <div className="space-y-3">
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assignees</Label>
@@ -139,7 +160,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                     <div key={user.id} className="group flex items-center justify-between bg-white rounded-md p-2 pl-2 shadow-sm border border-slate-200">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={user.avatarUrl} />
+                          <AvatarImage src={user.avatarUrl} className="object-cover" />
                           <AvatarFallback className="text-[9px] bg-[#0F766E] text-white">{getInitials(user.username)}</AvatarFallback>
                         </Avatar>
                         <span className="text-xs font-medium text-slate-700 truncate max-w-[110px]">{user.username}</span>
@@ -161,6 +182,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                       <SelectItem key={user.id} value={user.id.toString()} className="text-xs cursor-pointer">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-5 w-5">
+                            <AvatarImage src={user.avatarUrl} className="object-cover" />
                             <AvatarFallback className="text-[8px] bg-slate-200">{getInitials(user.username)}</AvatarFallback>
                           </Avatar>
                           {user.username}
@@ -170,8 +192,6 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Other sidebar items can go here (e.g., Due Date, Labels) */}
             </div>
           </div>
 

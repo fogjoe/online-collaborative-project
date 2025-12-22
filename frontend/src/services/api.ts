@@ -126,6 +126,14 @@ export const commentApi = {
   createComment: (cardId: number, content: string) => apiClient.post(API.getCommentsById(cardId), { content })
 }
 
+export const labelApi = {
+  getProjectLabels: (projectId: number) => apiClient.get(API.projectLabels(projectId)),
+
+  createLabel: (projectId: number, data: { name: string; color: string }) => apiClient.post(API.projectLabels(projectId), data),
+
+  toggleCardLabel: (cardId: number, labelId: number) => apiClient.post(API.toggleCardLabel(cardId, labelId))
+}
+
 // We also export the default client.
 // This lets other "api" files (like 'projectApi.ts')
 // import this pre-configured client.

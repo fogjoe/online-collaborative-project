@@ -12,6 +12,7 @@ import {
 import { List } from '../../list/entities/list.entity';
 import { User } from 'src/user/entities/user.entity';
 import { Comment } from 'src/comments/entities/comment.entity';
+import { Label } from 'src/labels/entities/label.entity';
 
 @Entity('cards')
 export class Card {
@@ -54,4 +55,8 @@ export class Card {
 
   @OneToMany(() => Comment, (comment) => comment.card)
   comments: Comment[];
+
+  @ManyToMany(() => Label, (label) => label.cards)
+  @JoinTable({ name: 'cards_labels' })
+  labels: Label[];
 }

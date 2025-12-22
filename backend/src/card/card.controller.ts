@@ -66,4 +66,12 @@ export class CardController {
   ) {
     return this.cardService.removeMember(cardId, userId);
   }
+
+  @Post(':id/labels/:labelId')
+  toggleLabel(
+    @Param('id', ParseIntPipe) cardId: number,
+    @Param('labelId', ParseIntPipe) labelId: number,
+  ) {
+    return this.cardService.toggleLabel(cardId, labelId);
+  }
 }

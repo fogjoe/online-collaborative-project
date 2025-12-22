@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity'; // Ensure the path is correct
 import { List } from 'src/list/entities/list.entity';
+import { Label } from 'src/labels/entities/label.entity';
 
 @Entity('projects')
 export class Project {
@@ -45,4 +46,7 @@ export class Project {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @OneToMany(() => Label, (label) => label.project)
+  labels: Label[];
 }

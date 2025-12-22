@@ -17,7 +17,9 @@ const API = {
   getNotifications: '/notifications',
   markNotificationRead: (id: number) => `/notifications/${id}/read`,
   profile: '/users/me',
-  getCommentsById: (cardId: number) => `/cards/${cardId}/comments`
+  getCommentsById: (cardId: number) => `/cards/${cardId}/comments`,
+  projectLabels: (projectId: number) => `/projects/${projectId}/labels`,
+  toggleCardLabel: (cardId: number, labelId: number) => `/cards/${cardId}/labels/${labelId}`
 }
 
 export default API

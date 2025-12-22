@@ -23,6 +23,12 @@ export interface User {
   avatarUrl?: string
 }
 
+export interface Label {
+  id: number
+  name: string
+  color: string
+}
+
 export interface Card {
   id: number
   title: string
@@ -30,6 +36,7 @@ export interface Card {
   order: number
   isCompleted: boolean
   assignees: User[]
+  labels: Label[]
 }
 
 interface DbList {
@@ -461,6 +468,8 @@ export const BoardPage = () => {
         projectMembers={members}
         onAssign={handleAssignMember}
         onUnassign={handleUnassignMember}
+        projectId={Number(projectId)}
+        onCardUpdate={fetchData}
       />
 
       <InviteMemberDialog isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} onInvite={handleInviteUser} />
