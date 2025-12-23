@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Plus, Check, UserPlus, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { listApi, cardApi, projectApi } from '@/services/api'
-import { LabelBadge } from '@/components/board/LabelBadge'
+import { CardLabelsPreview } from '@/components/board/CardLabelsPreview'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -380,32 +380,35 @@ export const BoardPage = () => {
 
                                     {card.description && <p className={`text-[13px] line-clamp-2 ${card.isCompleted ? 'text-slate-300' : 'text-slate-500'}`}>{card.description}</p>}
 
-                                    <div className="flex justify-between items-end pt-3 mt-2 border-t border-slate-50 gap-3">
-                                      <div className="flex flex-col gap-2">
-                                        {card.labels && card.labels.length > 0 && (
-                                          <div className="flex flex-wrap gap-1.5">
-                                            {card.labels.map(label => (
-                                              <LabelBadge key={`${card.id}-${label.id}`} color={label.color} name={label.name} className="text-[10px] px-2 py-0.5 shadow-none" />
-                                            ))}
-                                          </div>
+                                    <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-50 gap-2">
+                                      {/* Avatars - Left */}
+                                      <div className="flex -space-x-2 flex-shrink-0">
+                                        {card.assignees?.slice(0, 3).map(user => (
+                                          <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
+                                            <AvatarImage src={user.avatarUrl} />
+                                            <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
+                                          </Avatar>
+                                        ))}
+                                        {card.assignees && card.assignees.length > 3 && (
+                                          <span className="h-6 w-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] font-medium text-slate-500">
+                                            +{card.assignees.length - 3}
+                                          </span>
                                         )}
-                                        <div className="flex -space-x-2">
-                                          {card.assignees?.map(user => (
-                                            <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
-                                              <AvatarImage src={user.avatarUrl} />
-                                              <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
-                                            </Avatar>
-                                          ))}
-                                        </div>
                                       </div>
 
+                                      {/* Labels - Center */}
+                                      <div className="flex-1 flex justify-center">
+                                        <CardLabelsPreview labels={card.labels} />
+                                      </div>
+
+                                      {/* Complete button - Right */}
                                       <button
                                         onClick={e => {
                                           e.stopPropagation()
                                           handleToggleCardStatus(card.id, card.isCompleted)
                                         }}
                                         className={`
-                                          h-6 w-6 rounded-full flex items-center justify-center transition-all
+                                          h-6 w-6 rounded-full flex items-center justify-center transition-all flex-shrink-0
                                           ${card.isCompleted ? 'bg-emerald-500 text-white shadow-sm scale-110' : 'bg-slate-100 text-slate-300 hover:bg-emerald-100 hover:text-emerald-500'}
                                         `}
                                       >
