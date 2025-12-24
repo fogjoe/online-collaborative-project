@@ -19,3 +19,5 @@ backend/.pnpm-store/
 
 .env
 docker-compose.example.yml
+
+.claude/*
