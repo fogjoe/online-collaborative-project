@@ -23,6 +23,7 @@ import { CardComments } from './CardComments'
 
 import { LabelPopover } from './LabelPopover'
 import { LabelBadge } from './LabelBadge'
+import { CardAttachments } from './CardAttachments'
 
 interface EditCardDialogProps {
   card: CardType | null
@@ -146,6 +147,8 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                   placeholder="Add more details about this task..."
                 />
               </div>
+
+              <CardAttachments cardId={card.id} initialAttachments={card.attachments} onRefreshCard={onCardUpdate} />
             </div>
 
             {/* RIGHT COLUMN: Sidebar (Metadata & Actions) */}

@@ -6,7 +6,7 @@ import { EditCardDialog } from '@/components/board/EditCardDialog'
 import { InviteMemberDialog } from '@/components/board/InviteMemberDialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Plus, Check, UserPlus, MoreHorizontal } from 'lucide-react'
+import { Plus, Check, UserPlus, MoreHorizontal, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { listApi, cardApi, projectApi } from '@/services/api'
 import { CardLabelsPreview } from '@/components/board/CardLabelsPreview'
@@ -30,6 +30,16 @@ export interface Label {
   color: string
 }
 
+export interface Attachment {
+  id: number
+  originalName: string
+  fileName?: string
+  mimeType: string
+  size: number
+  url: string
+  createdAt: string
+}
+
 export interface Card {
   id: number
   title: string
@@ -38,6 +48,7 @@ export interface Card {
   isCompleted: boolean
   assignees: User[]
   labels: Label[]
+  attachments: Attachment[]
 }
 
 interface DbList {
@@ -113,7 +124,11 @@ export const BoardPage = () => {
       // Transform into Map
       const newCardsMap: Record<number, Card[]> = {}
       lists.forEach(list => {
-        newCardsMap[list.id] = (list.cards || []).sort((a, b) => a.order - b.order)
+        const normalizedCards = (list.cards || []).map(card => ({
+          ...card,
+          attachments: card.attachments || []
+        }))
+        newCardsMap[list.id] = normalizedCards.sort((a, b) => a.order - b.order)
       })
       setCardsByListId(newCardsMap)
 
@@ -207,9 +222,13 @@ export const BoardPage = () => {
 
     try {
       const res = await cardApi.create({ title: newCardTitle, description: newCardDesc, listId })
+      const createdCard: Card = {
+        ...res.data,
+        attachments: res.data?.attachments || []
+      }
       setCardsByListId(prev => ({
         ...prev,
-        [listId]: [...(prev[listId] || []), res.data]
+        [listId]: [...(prev[listId] || []), createdCard]
       }))
       setNewCardTitle('')
       setNewCardDesc('')
@@ -396,24 +415,31 @@ export const BoardPage = () => {
                                         )}
                                       </div>
 
-                                      {/* Labels - Center */}
                                       <div className="flex-1 flex justify-center">
                                         <CardLabelsPreview labels={card.labels} />
                                       </div>
 
-                                      {/* Complete button - Right */}
-                                      <button
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          handleToggleCardStatus(card.id, card.isCompleted)
-                                        }}
-                                        className={`
-                                          h-6 w-6 rounded-full flex items-center justify-center transition-all flex-shrink-0
-                                          ${card.isCompleted ? 'bg-emerald-500 text-white shadow-sm scale-110' : 'bg-slate-100 text-slate-300 hover:bg-emerald-100 hover:text-emerald-500'}
-                                        `}
-                                      >
-                                        <Check size={12} strokeWidth={3} />
-                                      </button>
+                                      <div className="flex items-center gap-2">
+                                        {card.attachments?.length > 0 && (
+                                          <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                            <Paperclip size={12} />
+                                            {card.attachments.length}
+                                          </div>
+                                        )}
+
+                                        <button
+                                          onClick={e => {
+                                            e.stopPropagation()
+                                            handleToggleCardStatus(card.id, card.isCompleted)
+                                          }}
+                                          className={`
+                                            h-6 w-6 rounded-full flex items-center justify-center transition-all flex-shrink-0
+                                            ${card.isCompleted ? 'bg-emerald-500 text-white shadow-sm scale-110' : 'bg-slate-100 text-slate-300 hover:bg-emerald-100 hover:text-emerald-500'}
+                                          `}
+                                        >
+                                          <Check size={12} strokeWidth={3} />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

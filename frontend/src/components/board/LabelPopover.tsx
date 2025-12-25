@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Tag, Plus, Check } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -41,19 +41,20 @@ export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate, onLa
   const [newLabelName, setNewLabelName] = useState('')
   const [selectedColor, setSelectedColor] = useState(COLORS[0])
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    loadLabels()
-  }, [])
-
-  const loadLabels = async () => {
+  const loadLabels = useCallback(async () => {
     try {
       const res = await labelApi.getProjectLabels(projectId)
       setLabels(res.data.data || res.data)
     } catch (error) {
       console.error('Failed to load labels', error)
     }
-  }
+  }, [projectId])
+
+  useEffect(() => {
+    void (async () => {
+      await loadLabels()
+    })()
+  }, [loadLabels])
 
   const handleToggle = async (label: Label) => {
     const willActivate = !activeLabelIds.includes(label.id)

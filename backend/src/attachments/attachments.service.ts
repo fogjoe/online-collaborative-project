@@ -6,6 +6,7 @@ import { Attachment } from './entities/attachment.entity';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { unlink } from 'fs/promises';
+import { Buffer } from 'buffer';
 
 @Injectable()
 export class AttachmentsService {
@@ -25,7 +26,7 @@ export class AttachmentsService {
 
     const attachment = this.attachmentRepository.create({
       card,
-      originalName: file.originalname,
+      originalName: this.decodeFileName(file.originalname),
       fileName: file.filename,
       mimeType: file.mimetype,
       size: file.size,
@@ -38,10 +39,16 @@ export class AttachmentsService {
   async findByCard(cardId: number) {
     await this.ensureCardExists(cardId);
 
-    return this.attachmentRepository.find({
+    const attachments = await this.attachmentRepository.find({
       where: { card: { id: cardId } },
       order: { createdAt: 'DESC' },
     });
+
+    attachments.forEach((attachment) => {
+      attachment.originalName = this.decodeFileName(attachment.originalName);
+    });
+
+    return attachments;
   }
 
   async remove(id: number) {
@@ -72,6 +79,17 @@ export class AttachmentsService {
     const exists = await this.cardRepository.exists({ where: { id: cardId } });
     if (!exists) {
       throw new NotFoundException(`Card with ID ${cardId} not found`);
+    }
+  }
+
+  private decodeFileName(name?: string) {
+    if (!name) {
+      return '';
+    }
+    try {
+      return Buffer.from(name, 'latin1').toString('utf8');
+    } catch {
+      return name;
     }
   }
 }

@@ -19,7 +19,9 @@ const API = {
   profile: '/users/me',
   getCommentsById: (cardId: number) => `/cards/${cardId}/comments`,
   projectLabels: (projectId: number) => `/projects/${projectId}/labels`,
-  toggleCardLabel: (cardId: number, labelId: number) => `/cards/${cardId}/labels/${labelId}`
+  toggleCardLabel: (cardId: number, labelId: number) => `/cards/${cardId}/labels/${labelId}`,
+  cardAttachments: (cardId: number) => `/attachments/card/${cardId}`,
+  deleteAttachment: (attachmentId: number) => `/attachments/${attachmentId}`
 }
 
 export default API

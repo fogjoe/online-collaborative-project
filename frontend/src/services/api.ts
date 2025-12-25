@@ -2,6 +2,7 @@ import axios, { type InternalAxiosRequestConfig, type AxiosError, AxiosResponse 
 import type { LoginDto, RegisterDto } from '@/types/auth'
 import API from '@/common/api'
 import { toast } from 'sonner'
+import { AttachmentItem } from '@/components/board/CardAttachments'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ApiResponse<T = any> {
@@ -102,8 +103,7 @@ export const cardApi = {
     apiClient.patch<any, ApiResponse>(API.reorderCards, data),
 
   toggleStatus: (cardId: number) => apiClient.patch(API.toggleCard(cardId)),
-  update: (cardId: number, data: { title?: string; description?: string; labelIds?: number[] }) =>
-    apiClient.patch(API.updateCard(cardId), data),
+  update: (cardId: number, data: { title?: string; description?: string; labelIds?: number[] }) => apiClient.patch(API.updateCard(cardId), data),
 
   delete: (cardId: number) => apiClient.delete(API.deleteCard(cardId)),
 
@@ -133,6 +133,18 @@ export const labelApi = {
   createLabel: (projectId: number, data: { name: string; color: string }) => apiClient.post(API.projectLabels(projectId), data),
 
   toggleCardLabel: (cardId: number, labelId: number) => apiClient.post(API.toggleCardLabel(cardId, labelId))
+}
+
+export const attachmentsApi = {
+  list: (cardId: number) => apiClient.get<AttachmentItem[]>(API.cardAttachments(cardId)),
+  upload: (cardId: number, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post(API.cardAttachments(cardId), formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  remove: (attachmentId: number) => apiClient.delete(API.deleteAttachment(attachmentId))
 }
 
 // We also export the default client.

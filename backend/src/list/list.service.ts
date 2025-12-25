@@ -54,6 +54,7 @@ export class ListService {
       .leftJoinAndSelect('list.cards', 'card')
       .leftJoinAndSelect('card.assignees', 'assignee')
       .leftJoinAndSelect('card.labels', 'label')
+      .leftJoinAndSelect('card.attachments', 'attachment')
       .where('project.id = :projectId', { projectId })
       .orderBy('list.order', 'ASC')
       .addOrderBy('card.order', 'ASC')
