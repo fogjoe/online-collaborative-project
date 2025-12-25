@@ -179,7 +179,13 @@ export class CardService {
   async findOne(id: number) {
     const card = await this.cardRepository.findOne({
       where: { id },
-      relations: ['labels', 'assignees', 'comments', 'comments.user'],
+      relations: [
+        'labels',
+        'assignees',
+        'comments',
+        'comments.user',
+        'attachments',
+      ],
     });
 
     if (!card) {

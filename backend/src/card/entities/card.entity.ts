@@ -13,6 +13,7 @@ import { List } from '../../list/entities/list.entity';
 import { User } from 'src/user/entities/user.entity';
 import { Comment } from 'src/comments/entities/comment.entity';
 import { Label } from 'src/labels/entities/label.entity';
+import { Attachment } from 'src/attachments/entities/attachment.entity';
 
 @Entity('cards')
 export class Card {
@@ -59,4 +60,7 @@ export class Card {
   @ManyToMany(() => Label, (label) => label.cards)
   @JoinTable({ name: 'cards_labels' })
   labels: Label[];
+
+  @OneToMany(() => Attachment, (attachment) => attachment.card)
+  attachments: Attachment[];
 }

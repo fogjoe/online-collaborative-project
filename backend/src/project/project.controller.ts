@@ -19,6 +19,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ConfigService } from '@nestjs/config';
 import { AddMemberDto } from './dto/add-member.dto';
+import { ensureUploadSubdirectory } from 'src/common/utils/upload.util';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard) //  Only logged in users can access
@@ -31,9 +32,12 @@ export class ProjectController {
   @Post()
   @UseInterceptors(
     FileInterceptor('avatar', {
-      // Storage configuration: Save files to './uploads' directory
+      // Storage configuration: Save files to './uploads/avatars' directory
       storage: diskStorage({
-        destination: './uploads',
+        destination: (req, file, callback) => {
+          const uploadPath = ensureUploadSubdirectory('avatars');
+          callback(null, uploadPath);
+        },
         filename: (req, file, callback) => {
           // Generate a unique filename (e.g., random-string.jpg)
           const uniqueSuffix =
@@ -56,7 +60,7 @@ export class ProjectController {
     if (file) {
       // Note: In production, use your actual domain env variable instead of localhost
       const backendUrl = this.configService.get<string>('SERVICE_URL');
-      avatarUrl = `${backendUrl}/uploads/${file.filename}`;
+      avatarUrl = `${backendUrl}/uploads/avatars/${file.filename}`;
     }
 
     return this.projectService.create(createProjectDto, req.user, avatarUrl);
@@ -69,7 +73,6 @@ export class ProjectController {
 
   /**
    * DELETE /api/projects/:id
-   * ParseIntPipe 用来把 URL 参数从字符串转换成数字，并在不能转换时自动抛出 400 错误。
    */
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number, @Req() req) {

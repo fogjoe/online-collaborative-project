@@ -15,6 +15,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { NotificationModule } from './notification/notification.module';
 import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
+import { AttachmentsModule } from './attachments/attachments.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { LabelsModule } from './labels/labels.module';
     CommentsModule,
     CommentsModule,
     LabelsModule,
+    AttachmentsModule,
   ],
   controllers: [AppController],
   providers: [
