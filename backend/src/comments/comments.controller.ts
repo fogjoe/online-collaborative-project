@@ -22,7 +22,7 @@ export class CommentsController {
     @Param('cardId', ParseIntPipe) cardId: number,
     @Body('content') content: string,
   ) {
-    return this.commentsService.create(req.user.userId, cardId, content);
+    return this.commentsService.create(req.user, cardId, content);
   }
 
   @Get()

@@ -6,9 +6,13 @@ import { Card } from './entities/card.entity';
 import { List } from 'src/list/entities/list.entity';
 import { User } from 'src/user/entities/user.entity';
 import { Label } from 'src/labels/entities/label.entity';
+import { ActivityModule } from 'src/activity/activity.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Card, List, User, Label])],
+  imports: [
+    TypeOrmModule.forFeature([Card, List, User, Label]),
+    ActivityModule,
+  ],
   controllers: [CardController],
   providers: [CardService],
 })

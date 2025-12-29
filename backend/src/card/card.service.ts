@@ -9,6 +9,7 @@ import { UpdateCardDto } from './dto/update-card.dto';
 import { User } from 'src/user/entities/user.entity';
 import { AssignUserDto } from './dto/assign-user.dto';
 import { Label } from 'src/labels/entities/label.entity';
+import { ActivityService } from 'src/activity/activity.service';
 
 @Injectable()
 export class CardService {
@@ -21,12 +22,16 @@ export class CardService {
     private userRepository: Repository<User>,
     @InjectRepository(Label)
     private labelRepository: Repository<Label>,
+    private readonly activityService: ActivityService,
   ) {}
 
-  async create(createCardDto: CreateCardDto) {
+  async create(createCardDto: CreateCardDto, actor: User) {
     const { listId, title, description } = createCardDto;
 
-    const list = await this.listRepository.findOneBy({ id: listId });
+    const list = await this.listRepository.findOne({
+      where: { id: listId },
+      relations: ['project'],
+    });
     if (!list) {
       throw new NotFoundException('List not found');
     }
@@ -46,26 +51,47 @@ export class CardService {
       isCompleted: false,
     });
 
-    return this.cardRepository.save(newCard);
+    const savedCard = await this.cardRepository.save(newCard);
+
+    await this.activityService.log({
+      projectId: list.project.id,
+      actor,
+      action: 'created_card',
+      newValue: {
+        cardId: savedCard.id,
+        title: savedCard.title,
+        description: savedCard.description,
+      },
+      metadata: {
+        listId: list.id,
+        listName: list.name,
+      },
+    });
+
+    return savedCard;
   }
 
-  async reorder(dto: ReorderCardDto) {
+  async reorder(dto: ReorderCardDto, actor: User) {
     const { cardId, targetListId, newOrder } = dto;
 
     // 1. Find the card
     const card = await this.cardRepository.findOne({
       where: { id: cardId },
-      relations: ['list'], // Load the list relation to check current list
+      relations: ['list', 'list.project'], // Load the list relation to check current list
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${cardId} not found`);
     }
 
+    const previousList = card.list;
+    let moved = false;
+
     // 2. Check if moving to a different list
     if (card.list.id !== targetListId) {
-      const targetList = await this.listRepository.findOneBy({
-        id: targetListId,
+      const targetList = await this.listRepository.findOne({
+        where: { id: targetListId },
+        relations: ['project'],
       });
       if (!targetList) {
         throw new NotFoundException(
@@ -74,6 +100,7 @@ export class CardService {
       }
       // Update relationship
       card.list = targetList;
+      moved = true;
     }
 
     // 3. Update the order
@@ -82,6 +109,22 @@ export class CardService {
 
     // 4. Save updates
     const savedCard = await this.cardRepository.save(card);
+
+    if (moved) {
+      const destinationList = card.list;
+      await this.activityService.log({
+        projectId: destinationList.project.id,
+        actor,
+        action: 'moved_card',
+        metadata: {
+          cardId: savedCard.id,
+          cardTitle: savedCard.title,
+          fromList: { id: previousList.id, name: previousList.name },
+          toList: { id: destinationList.id, name: destinationList.name },
+        },
+      });
+    }
+
     return {
       message: `The card named ${savedCard.title} moved to new position`,
       result: savedCard,
@@ -99,16 +142,22 @@ export class CardService {
     return this.cardRepository.save(card);
   }
 
-  async update(id: number, updateCardDto: UpdateCardDto) {
+  async update(id: number, updateCardDto: UpdateCardDto, actor: User) {
     const { labelIds, ...partialData } = updateCardDto;
     const card = await this.cardRepository.findOne({
       where: { id },
-      relations: ['labels'],
+      relations: ['labels', 'list', 'list.project'],
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${id} not found`);
     }
+
+    const oldValue = {
+      title: card.title,
+      description: card.description,
+      labelIds: card.labels.map((label) => label.id),
+    };
 
     // Merge the updates into the existing card
     // properties in dto will overwrite card properties
@@ -121,7 +170,22 @@ export class CardService {
       updatedCard.labels = labels;
     }
 
-    return this.cardRepository.save(updatedCard);
+    const saved = await this.cardRepository.save(updatedCard);
+
+    await this.activityService.log({
+      projectId: card.list.project.id,
+      actor,
+      action: 'updated_card',
+      oldValue,
+      newValue: {
+        title: saved.title,
+        description: saved.description,
+        labelIds: saved.labels?.map((label) => label.id) ?? [],
+      },
+      metadata: { cardId: saved.id },
+    });
+
+    return saved;
   }
 
   async remove(id: number) {

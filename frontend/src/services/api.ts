@@ -147,6 +147,13 @@ export const attachmentsApi = {
   remove: (attachmentId: number) => apiClient.delete(API.deleteAttachment(attachmentId))
 }
 
+export const activityApi = {
+  list: (projectId: number, cursor?: string, limit = 25) =>
+    apiClient.get(API.projectActivity(projectId), {
+      params: { cursor, limit }
+    })
+}
+
 // We also export the default client.
 // This lets other "api" files (like 'projectApi.ts')
 // import this pre-configured client.

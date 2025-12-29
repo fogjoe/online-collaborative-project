@@ -10,6 +10,7 @@ import { Plus, Check, UserPlus, MoreHorizontal, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { listApi, cardApi, projectApi } from '@/services/api'
 import { CardLabelsPreview } from '@/components/board/CardLabelsPreview'
+import { ActivityFeed } from '@/components/board/ActivityFeed'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -500,6 +501,12 @@ export const BoardPage = () => {
             </div>
           </div>
         </DragDropContext>
+
+        {projectId && (
+          <div className="bg-white border-t border-slate-200 px-8 py-6">
+            <ActivityFeed projectId={projectId} />
+          </div>
+        )}
       </div>
 
       <EditCardDialog

@@ -20,6 +20,8 @@ import { extname } from 'path';
 import { ConfigService } from '@nestjs/config';
 import { AddMemberDto } from './dto/add-member.dto';
 import { ensureUploadSubdirectory } from 'src/common/utils/upload.util';
+import { ActivityLog } from 'src/activity/decorators/log-activity.decorator';
+import { ActivityLoggingInterceptor } from 'src/activity/interceptors/activity-logging.interceptor';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard) //  Only logged in users can access
@@ -80,6 +82,30 @@ export class ProjectController {
   }
 
   @Post(':id/members')
+  @UseInterceptors(ActivityLoggingInterceptor)
+  @ActivityLog({
+    action: 'invited_member',
+    projectIdParam: 'id',
+    buildPayload: (context, result) => {
+      const req = context.switchToHttp().getRequest();
+      const responseData =
+        result && typeof result === 'object' && 'data' in result
+          ? (result as { data?: unknown }).data
+          : result;
+      const member =
+        responseData && typeof responseData === 'object'
+          ? (responseData as { member?: { id?: number; email?: string } })
+              .member
+          : undefined;
+      return {
+        newValue: { email: req.body?.email },
+        metadata: {
+          memberId: member?.id,
+          memberEmail: member?.email ?? req.body?.email,
+        },
+      };
+    },
+  })
   addMember(
     @Param('id', ParseIntPipe) id: number,
     @Body() addMemberDto: AddMemberDto,

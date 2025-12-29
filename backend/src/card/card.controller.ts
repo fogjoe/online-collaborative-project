@@ -7,6 +7,7 @@ import {
   Param,
   ParseIntPipe,
   Delete,
+  Req,
 } from '@nestjs/common';
 import { CardService } from './card.service';
 import { CreateCardDto } from './dto/create-card.dto';
@@ -22,14 +23,14 @@ export class CardController {
   constructor(private readonly cardService: CardService) {}
 
   @Post()
-  create(@Body() createCardDto: CreateCardDto) {
-    return this.cardService.create(createCardDto);
+  create(@Body() createCardDto: CreateCardDto, @Req() req) {
+    return this.cardService.create(createCardDto, req.user);
   }
 
   @Patch('reorder')
   @ResponseMessage('Card moved successfully')
-  reorder(@Body() reorderCardDto: ReorderCardDto) {
-    return this.cardService.reorder(reorderCardDto);
+  reorder(@Body() reorderCardDto: ReorderCardDto, @Req() req) {
+    return this.cardService.reorder(reorderCardDto, req.user);
   }
 
   @Patch(':id/toggle')
@@ -41,8 +42,9 @@ export class CardController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCardDto: UpdateCardDto,
+    @Req() req,
   ) {
-    return this.cardService.update(id, updateCardDto);
+    return this.cardService.update(id, updateCardDto, req.user);
   }
 
   @Delete(':id')

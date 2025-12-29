@@ -4,26 +4,44 @@ import { Repository } from 'typeorm';
 import { Comment } from './entities/comment.entity';
 import { User } from '../user/entities/user.entity';
 import { Card } from '../card/entities/card.entity';
+import { ActivityService } from 'src/activity/activity.service';
 
 @Injectable()
 export class CommentsService {
   constructor(
     @InjectRepository(Comment) private commentRepo: Repository<Comment>,
     @InjectRepository(Card) private cardRepo: Repository<Card>,
+    private readonly activityService: ActivityService,
   ) {}
 
-  async create(userId: number, cardId: number, content: string) {
-    const card = await this.cardRepo.findOneBy({ id: cardId });
+  async create(user: User, cardId: number, content: string) {
+    const card = await this.cardRepo.findOne({
+      where: { id: cardId },
+      relations: ['list', 'list.project'],
+    });
     if (!card) throw new NotFoundException('Card not found');
 
     const comment = this.commentRepo.create({
       content,
-      user: { id: userId } as User, // Efficient shorthand
+      user: { id: user.id } as User, // Efficient shorthand
       card,
     });
 
-    // Save and return with user details for the frontend
-    return this.commentRepo.save(comment);
+    const savedComment = await this.commentRepo.save(comment);
+
+    await this.activityService.log({
+      projectId: card.list.project.id,
+      actor: user,
+      action: 'added_comment',
+      newValue: { content },
+      metadata: {
+        cardId: card.id,
+        cardTitle: card.title,
+        commentId: savedComment.id,
+      },
+    });
+
+    return savedComment;
   }
 
   async findByCard(cardId: number) {

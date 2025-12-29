@@ -16,6 +16,7 @@ import { NotificationModule } from './notification/notification.module';
 import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { ActivityModule } from './activity/activity.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
     CommentsModule,
     LabelsModule,
     AttachmentsModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [
