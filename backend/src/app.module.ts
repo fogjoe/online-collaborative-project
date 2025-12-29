@@ -17,6 +17,7 @@ import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ActivityModule } from './activity/activity.module';
+import { WebsocketModule } from './websocket/websocket.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ActivityModule } from './activity/activity.module';
     LabelsModule,
     AttachmentsModule,
     ActivityModule,
+    WebsocketModule,
   ],
   controllers: [AppController],
   providers: [

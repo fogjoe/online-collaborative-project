@@ -10,6 +10,7 @@ import { User } from 'src/user/entities/user.entity';
 import { AssignUserDto } from './dto/assign-user.dto';
 import { Label } from 'src/labels/entities/label.entity';
 import { ActivityService } from 'src/activity/activity.service';
+import { WebsocketService } from 'src/websocket/websocket.service';
 
 @Injectable()
 export class CardService {
@@ -23,6 +24,7 @@ export class CardService {
     @InjectRepository(Label)
     private labelRepository: Repository<Label>,
     private readonly activityService: ActivityService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   async create(createCardDto: CreateCardDto, actor: User) {
@@ -65,6 +67,26 @@ export class CardService {
       metadata: {
         listId: list.id,
         listName: list.name,
+      },
+    });
+
+    // Emit WebSocket event for real-time update
+    this.websocketService.emitCardCreated({
+      projectId: list.project.id,
+      listId: list.id,
+      card: {
+        id: savedCard.id,
+        title: savedCard.title,
+        description: savedCard.description,
+        order: savedCard.order,
+        isCompleted: savedCard.isCompleted,
+        assignees: [],
+        labels: [],
+        attachments: [],
+      },
+      actor: {
+        id: actor.id,
+        username: actor.username,
       },
     });
 
@@ -124,6 +146,19 @@ export class CardService {
         },
       });
     }
+
+    // Emit WebSocket event for card moved/reordered
+    this.websocketService.emitCardMoved({
+      projectId: card.list.project.id,
+      cardId: savedCard.id,
+      fromListId: previousList.id,
+      toListId: targetListId,
+      newOrder: savedCard.order,
+      actor: {
+        id: actor.id,
+        username: actor.username,
+      },
+    });
 
     return {
       message: `The card named ${savedCard.title} moved to new position`,
@@ -185,15 +220,54 @@ export class CardService {
       metadata: { cardId: saved.id },
     });
 
+    // Emit WebSocket event for card updated
+    this.websocketService.emitCardUpdated({
+      projectId: card.list.project.id,
+      cardId: saved.id,
+      updates: {
+        title: saved.title,
+        description: saved.description,
+        labels: saved.labels?.map((label) => ({
+          id: label.id,
+          name: label.name,
+          color: label.color,
+        })),
+      },
+      actor: {
+        id: actor.id,
+        username: actor.username,
+      },
+    });
+
     return saved;
   }
 
-  async remove(id: number) {
-    const result = await this.cardRepository.delete(id);
+  async remove(id: number, actor: User) {
+    // First fetch the card with relations to get projectId
+    const card = await this.cardRepository.findOne({
+      where: { id },
+      relations: ['list', 'list.project'],
+    });
 
-    if (result.affected === 0) {
+    if (!card) {
       throw new NotFoundException(`Card with ID ${id} not found`);
     }
+
+    const projectId = card.list.project.id;
+    const listId = card.list.id;
+
+    await this.cardRepository.delete(id);
+
+    // Emit WebSocket event for card deleted
+    this.websocketService.emitCardDeleted({
+      projectId,
+      cardId: id,
+      listId,
+      actor: {
+        id: actor.id,
+        username: actor.username,
+      },
+    });
 
     return { message: 'Card deleted successfully' };
   }

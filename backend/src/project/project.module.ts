@@ -7,6 +7,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { User } from 'src/user/entities/user.entity';
 import { NotificationModule } from 'src/notification/notification.module';
 import { ActivityModule } from 'src/activity/activity.module';
+import { WebsocketModule } from 'src/websocket/websocket.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ActivityModule } from 'src/activity/activity.module';
     AuthModule,
     NotificationModule,
     ActivityModule,
+    WebsocketModule,
   ],
   controllers: [ProjectController],
   providers: [ProjectService],

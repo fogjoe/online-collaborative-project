@@ -7,11 +7,13 @@ import { List } from 'src/list/entities/list.entity';
 import { User } from 'src/user/entities/user.entity';
 import { Label } from 'src/labels/entities/label.entity';
 import { ActivityModule } from 'src/activity/activity.module';
+import { WebsocketModule } from 'src/websocket/websocket.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Card, List, User, Label]),
     ActivityModule,
+    WebsocketModule,
   ],
   controllers: [CardController],
   providers: [CardService],

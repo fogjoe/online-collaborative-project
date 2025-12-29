@@ -6,11 +6,21 @@ import { EditCardDialog } from '@/components/board/EditCardDialog'
 import { InviteMemberDialog } from '@/components/board/InviteMemberDialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Plus, Check, UserPlus, MoreHorizontal, Paperclip, Activity } from 'lucide-react'
+import { Plus, Check, UserPlus, MoreHorizontal, Paperclip, Activity, Wifi, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { listApi, cardApi, projectApi } from '@/services/api'
 import { CardLabelsPreview } from '@/components/board/CardLabelsPreview'
 import { ActivityDrawer } from '@/components/board/ActivityDrawer'
+import { useWebSocket } from '@/hooks/useWebSocket'
+import { useAuth } from '@/context/AuthContext'
+import {
+  CardCreatedPayload,
+  CardUpdatedPayload,
+  CardMovedPayload,
+  CardDeletedPayload,
+  CommentAddedPayload,
+  MemberJoinedPayload
+} from '@/types/websocket'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -96,6 +106,7 @@ const getInitials = (name: string) => {
 export const BoardPage = () => {
   const { id } = useParams<{ id: string }>()
   const projectId = Number(id)
+  const { user } = useAuth()
 
   // --- State ---
   const [dbLists, setDbLists] = useState<DbList[]>([])
@@ -112,6 +123,121 @@ export const BoardPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
+
+  // --- WebSocket Event Handlers ---
+  const handleWebSocketCardCreated = useCallback((payload: CardCreatedPayload) => {
+    // Skip if this is our own action (already handled optimistically)
+    if (payload.actor.id === user?.id) return
+
+    const newCard: Card = {
+      id: payload.card.id,
+      title: payload.card.title,
+      description: payload.card.description,
+      order: payload.card.order,
+      isCompleted: payload.card.isCompleted,
+      assignees: payload.card.assignees as User[],
+      labels: payload.card.labels as Label[],
+      attachments: payload.card.attachments as Attachment[]
+    }
+
+    setCardsByListId(prev => ({
+      ...prev,
+      [payload.listId]: [...(prev[payload.listId] || []), newCard].sort((a, b) => a.order - b.order)
+    }))
+
+    toast.info(`${payload.actor.username} created a new card: "${payload.card.title}"`)
+  }, [user?.id])
+
+  const handleWebSocketCardUpdated = useCallback((payload: CardUpdatedPayload) => {
+    if (payload.actor.id === user?.id) return
+
+    setCardsByListId(prev => {
+      const newMap = { ...prev }
+      for (const listId in newMap) {
+        newMap[listId] = newMap[listId].map(card => {
+          if (card.id === payload.cardId) {
+            return {
+              ...card,
+              ...payload.updates,
+              labels: payload.updates.labels || card.labels
+            }
+          }
+          return card
+        })
+      }
+      return newMap
+    })
+
+    toast.info(`${payload.actor.username} updated a card`)
+  }, [user?.id])
+
+  const handleWebSocketCardMoved = useCallback((payload: CardMovedPayload) => {
+    if (payload.actor.id === user?.id) return
+
+    setCardsByListId(prev => {
+      const newMap = { ...prev }
+
+      // Find and remove card from source list
+      let movedCard: Card | undefined
+      for (const listId in newMap) {
+        const cardIndex = newMap[listId].findIndex(c => c.id === payload.cardId)
+        if (cardIndex !== -1) {
+          movedCard = { ...newMap[listId][cardIndex], order: payload.newOrder }
+          newMap[listId] = newMap[listId].filter(c => c.id !== payload.cardId)
+          break
+        }
+      }
+
+      // Add to destination list
+      if (movedCard) {
+        newMap[payload.toListId] = [...(newMap[payload.toListId] || []), movedCard].sort((a, b) => a.order - b.order)
+      }
+
+      return newMap
+    })
+
+    if (payload.fromListId !== payload.toListId) {
+      toast.info(`${payload.actor.username} moved a card`)
+    }
+  }, [user?.id])
+
+  const handleWebSocketCardDeleted = useCallback((payload: CardDeletedPayload) => {
+    if (payload.actor.id === user?.id) return
+
+    setCardsByListId(prev => {
+      const newMap = { ...prev }
+      for (const listId in newMap) {
+        newMap[listId] = newMap[listId].filter(c => c.id !== payload.cardId)
+      }
+      return newMap
+    })
+
+    toast.info(`${payload.actor.username} deleted a card`)
+  }, [user?.id])
+
+  const handleWebSocketCommentAdded = useCallback((payload: CommentAddedPayload) => {
+    if (payload.comment.user.id === user?.id) return
+    toast.info(`${payload.comment.user.username} added a comment`)
+  }, [user?.id])
+
+  const handleWebSocketMemberJoined = useCallback((payload: MemberJoinedPayload) => {
+    setMembers(prev => {
+      if (prev.some(m => m.id === payload.member.id)) return prev
+      return [...prev, payload.member as User]
+    })
+    toast.info(`${payload.member.username} joined the project`)
+  }, [])
+
+  // --- WebSocket Connection ---
+  const { isConnected, boardUsers } = useWebSocket({
+    projectId,
+    onCardCreated: handleWebSocketCardCreated,
+    onCardUpdated: handleWebSocketCardUpdated,
+    onCardMoved: handleWebSocketCardMoved,
+    onCardDeleted: handleWebSocketCardDeleted,
+    onCommentAdded: handleWebSocketCommentAdded,
+    onMemberJoined: handleWebSocketMemberJoined
+  })
 
   // --- Data Fetching ---
   const fetchData = useCallback(async () => {
@@ -308,10 +434,36 @@ export const BoardPage = () => {
   // --- Render Helpers ---
   const renderHeader = () => (
     <div className="flex-none px-8 py-6 flex items-center justify-between border-b border-white/10">
-      <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Website Redesign Sprint</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Website Redesign Sprint</h1>
+        {/* WebSocket Connection Status */}
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+          {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
+          {isConnected ? 'Live' : 'Offline'}
+        </div>
+      </div>
 
       {/* Improved Member Invite Section */}
       <div className="flex items-center gap-3">
+        {/* Active Users Indicator */}
+        {boardUsers.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full">
+            <div className="flex items-center -space-x-2">
+              {boardUsers.slice(0, 3).map(u => (
+                <Avatar key={u.userId} className="h-6 w-6 border-2 border-white ring-2 ring-blue-100">
+                  <AvatarImage src={u.avatarUrl} />
+                  <AvatarFallback className="bg-blue-100 text-blue-600 text-[9px] font-bold">{getInitials(u.username)}</AvatarFallback>
+                </Avatar>
+              ))}
+            </div>
+            <span className="text-xs font-medium text-blue-600">
+              {boardUsers.length === 1 ? '1 viewing' : `${boardUsers.length} viewing`}
+            </span>
+          </div>
+        )}
+
+        <div className="h-6 w-px bg-slate-300 mx-1" />
+
         <div className="flex items-center -space-x-2">
           {members.slice(0, 5).map(m => (
             <Avatar key={m.id} className="h-9 w-9 border-2 border-white ring-1 ring-slate-200">

@@ -5,6 +5,7 @@ import { Comment } from './entities/comment.entity';
 import { User } from '../user/entities/user.entity';
 import { Card } from '../card/entities/card.entity';
 import { ActivityService } from 'src/activity/activity.service';
+import { WebsocketService } from 'src/websocket/websocket.service';
 
 @Injectable()
 export class CommentsService {
@@ -12,6 +13,7 @@ export class CommentsService {
     @InjectRepository(Comment) private commentRepo: Repository<Comment>,
     @InjectRepository(Card) private cardRepo: Repository<Card>,
     private readonly activityService: ActivityService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   async create(user: User, cardId: number, content: string) {
@@ -38,6 +40,22 @@ export class CommentsService {
         cardId: card.id,
         cardTitle: card.title,
         commentId: savedComment.id,
+      },
+    });
+
+    // Emit WebSocket event for comment added
+    this.websocketService.emitCommentAdded({
+      projectId: card.list.project.id,
+      cardId: card.id,
+      comment: {
+        id: savedComment.id,
+        content: savedComment.content,
+        createdAt: savedComment.createdAt.toISOString(),
+        user: {
+          id: user.id,
+          username: user.username,
+          avatarUrl: user.avatarUrl,
+        },
       },
     });
 

@@ -8,6 +8,7 @@ import { List } from 'src/list/entities/list.entity';
 import { ListStatus } from 'src/list/enums/list-status.enum';
 import { AddMemberDto } from './dto/add-member.dto';
 import { NotificationService } from 'src/notification/notification.service';
+import { WebsocketService } from 'src/websocket/websocket.service';
 
 @Injectable()
 export class ProjectService {
@@ -18,6 +19,7 @@ export class ProjectService {
     private userRepository: Repository<User>,
     private dataSource: DataSource,
     private notificationsService: NotificationService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   // When creating a project, we now use a Transaction to ensure lists are created too
@@ -134,6 +136,17 @@ export class ProjectService {
       `You have been invited to join the project: "${project.name}"`,
       project.id,
     );
+
+    // Emit WebSocket event for member joined
+    this.websocketService.emitMemberJoined({
+      projectId,
+      member: {
+        id: userToAdd.id,
+        username: userToAdd.username,
+        email: userToAdd.email,
+        avatarUrl: userToAdd.avatarUrl,
+      },
+    });
 
     return { message: 'Member added successfully', member: userToAdd };
   }

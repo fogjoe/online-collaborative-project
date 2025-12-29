@@ -4,9 +4,10 @@ import { ListController } from './list.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { List } from './entities/list.entity';
 import { Project } from '../project/entities/project.entity';
+import { WebsocketModule } from 'src/websocket/websocket.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([List, Project])],
+  imports: [TypeOrmModule.forFeature([List, Project]), WebsocketModule],
   controllers: [ListController],
   providers: [ListService],
 })

@@ -48,8 +48,8 @@ export class CardController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.cardService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.cardService.remove(id, req.user);
   }
 
   @Post(':id/assign')

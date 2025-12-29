@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateListDto } from './dto/create-list.dto';
 import { List } from './entities/list.entity';
 import { Project } from '../project/entities/project.entity';
+import { WebsocketService } from 'src/websocket/websocket.service';
 
 @Injectable()
 export class ListService {
@@ -12,6 +13,7 @@ export class ListService {
     private listRepository: Repository<List>,
     @InjectRepository(Project)
     private projectRepository: Repository<Project>,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   /**
@@ -41,7 +43,20 @@ export class ListService {
       project,
     });
 
-    return this.listRepository.save(newList);
+    const savedList = await this.listRepository.save(newList);
+
+    // Emit WebSocket event for list created
+    this.websocketService.emitListCreated({
+      projectId,
+      list: {
+        id: savedList.id,
+        name: savedList.name,
+        status: savedList.status,
+        order: savedList.order,
+      },
+    });
+
+    return savedList;
   }
 
   /**
