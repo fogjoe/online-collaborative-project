@@ -6,11 +6,11 @@ import { EditCardDialog } from '@/components/board/EditCardDialog'
 import { InviteMemberDialog } from '@/components/board/InviteMemberDialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Plus, Check, UserPlus, MoreHorizontal, Paperclip } from 'lucide-react'
+import { Plus, Check, UserPlus, MoreHorizontal, Paperclip, Activity } from 'lucide-react'
 import { toast } from 'sonner'
 import { listApi, cardApi, projectApi } from '@/services/api'
 import { CardLabelsPreview } from '@/components/board/CardLabelsPreview'
-import { ActivityFeed } from '@/components/board/ActivityFeed'
+import { ActivityDrawer } from '@/components/board/ActivityDrawer'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -111,6 +111,7 @@ export const BoardPage = () => {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
+  const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
 
   // --- Data Fetching ---
   const fetchData = useCallback(async () => {
@@ -329,6 +330,14 @@ export const BoardPage = () => {
           <UserPlus size={14} />
           Invite
         </Button>
+
+        <Button
+          onClick={() => setIsActivityDrawerOpen(true)}
+          variant="outline"
+          className="rounded-full h-9 w-9 p-0 border-slate-200 hover:bg-slate-100"
+        >
+          <Activity size={16} className="text-slate-600" />
+        </Button>
       </div>
     </div>
   )
@@ -501,13 +510,13 @@ export const BoardPage = () => {
             </div>
           </div>
         </DragDropContext>
-
-        {projectId && (
-          <div className="bg-white border-t border-slate-200 px-8 py-6">
-            <ActivityFeed projectId={projectId} />
-          </div>
-        )}
       </div>
+
+      <ActivityDrawer
+        isOpen={isActivityDrawerOpen}
+        onClose={() => setIsActivityDrawerOpen(false)}
+        projectId={projectId}
+      />
 
       <EditCardDialog
         card={selectedCard}

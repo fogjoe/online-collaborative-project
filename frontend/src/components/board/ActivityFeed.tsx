@@ -40,6 +40,7 @@ interface ActivityRecord {
 
 interface ActivityFeedProps {
   projectId: number
+  isOpen?: boolean
 }
 
 const toLocalDate = (value: string) => new Date(value.endsWith('Z') ? value : `${value}Z`)
@@ -73,7 +74,7 @@ const formatSummary = (activity: ActivityRecord) => {
   }
 }
 
-export const ActivityFeed: React.FC<ActivityFeedProps> = ({ projectId }) => {
+export const ActivityFeed: React.FC<ActivityFeedProps> = ({ projectId, isOpen }) => {
   const [activities, setActivities] = useState<ActivityRecord[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -110,6 +111,13 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ projectId }) => {
     void loadActivities(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
+
+  useEffect(() => {
+    if (isOpen) {
+      void loadActivities(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   return (
     <div className="space-y-4">
