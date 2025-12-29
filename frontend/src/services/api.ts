@@ -13,7 +13,7 @@ export interface ApiResponse<T = any> {
 
 // API is running on port 3000
 const apiClient = axios.create({
-  baseURL: 'http://localhost:7000/api',
+  baseURL: 'http://localhost:7001/api',
   timeout: 5000 // Added a timeout for good practice
 })
 

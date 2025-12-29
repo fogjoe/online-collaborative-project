@@ -14,7 +14,7 @@ import {
   BoardUsersPayload
 } from '@/types/websocket'
 
-const SOCKET_URL = 'http://localhost:7000/board'
+const SOCKET_URL = 'http://localhost:7001/board'
 
 interface UseWebSocketOptions {
   projectId: number
