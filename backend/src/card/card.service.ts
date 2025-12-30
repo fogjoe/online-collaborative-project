@@ -166,15 +166,33 @@ export class CardService {
     };
   }
 
-  async toggle(id: number) {
-    const card = await this.cardRepository.findOneBy({ id });
+  async toggle(id: number, actor: User) {
+    const card = await this.cardRepository.findOne({
+      where: { id },
+      relations: ['list', 'list.project'],
+    });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${id} not found`);
     }
 
     card.isCompleted = !card.isCompleted;
-    return this.cardRepository.save(card);
+    const savedCard = await this.cardRepository.save(card);
+
+    // Emit WebSocket event for card toggle
+    this.websocketService.emitCardUpdated({
+      projectId: card.list.project.id,
+      cardId: savedCard.id,
+      updates: {
+        isCompleted: savedCard.isCompleted,
+      },
+      actor: {
+        id: actor.id,
+        username: actor.username,
+      },
+    });
+
+    return savedCard;
   }
 
   async update(id: number, updateCardDto: UpdateCardDto, actor: User) {

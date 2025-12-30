@@ -156,11 +156,12 @@ export const BoardPage = () => {
       for (const listId in newMap) {
         newMap[listId] = newMap[listId].map(card => {
           if (card.id === payload.cardId) {
-            return {
-              ...card,
-              ...payload.updates,
-              labels: payload.updates.labels || card.labels
-            }
+            const updated = { ...card }
+            if (payload.updates.title !== undefined) updated.title = payload.updates.title
+            if (payload.updates.description !== undefined) updated.description = payload.updates.description
+            if (payload.updates.isCompleted !== undefined) updated.isCompleted = payload.updates.isCompleted
+            if (payload.updates.labels !== undefined) updated.labels = payload.updates.labels as Label[]
+            return updated
           }
           return card
         })

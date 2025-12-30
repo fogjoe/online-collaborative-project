@@ -49,6 +49,9 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Track which projects each socket is in: Map<socketId, Set<projectId>>
   private socketProjects: Map<string, Set<number>> = new Map();
 
+  // Track in-flight authentications so event handlers can wait for completion
+  private clientAuthPromises: Map<string, Promise<void>> = new Map();
+
   constructor(
     private jwtService: JwtService,
     @InjectRepository(User)
@@ -58,13 +61,22 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(client: AuthenticatedSocket) {
+    const authPromise = this.authenticateClient(client);
+    this.clientAuthPromises.set(client.id, authPromise);
+    try {
+      await authPromise;
+    } finally {
+      this.clientAuthPromises.delete(client.id);
+    }
+  }
+
+  private async authenticateClient(client: AuthenticatedSocket) {
     try {
       // Extract token from handshake auth or query
       const token =
         client.handshake.auth?.token || client.handshake.query?.token;
 
       if (!token) {
-        console.log(`Client ${client.id} connection rejected: No token`);
         client.emit('error', { message: 'Authentication required' });
         client.disconnect();
         return;
@@ -79,7 +91,6 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       if (!user) {
-        console.log(`Client ${client.id} connection rejected: User not found`);
         client.emit('error', { message: 'User not found' });
         client.disconnect();
         return;
@@ -95,19 +106,14 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Initialize socket tracking
       this.socketProjects.set(client.id, new Set());
-
-      console.log(`Client ${client.id} connected as user ${user.username}`);
-    } catch (error) {
-      console.log(
-        `Client ${client.id} connection rejected: Invalid token`,
-        error.message,
-      );
+    } catch {
       client.emit('error', { message: 'Invalid authentication token' });
       client.disconnect();
     }
   }
 
   async handleDisconnect(client: AuthenticatedSocket) {
+    this.clientAuthPromises.delete(client.id);
     if (!client.user) return;
 
     // Leave all project rooms
@@ -120,7 +126,6 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Cleanup socket tracking
     this.socketProjects.delete(client.id);
-    console.log(`Client ${client.id} disconnected`);
   }
 
   @SubscribeMessage(WebSocketEvents.JOIN_PROJECT)
@@ -128,6 +133,7 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: JoinProjectPayload,
   ) {
+    await this.ensureClientAuthenticated(client);
     const clientUser = client.user;
     if (!clientUser) {
       return { success: false, message: 'Not authenticated' };
@@ -161,6 +167,9 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!this.projectUsers.has(projectId)) {
       this.projectUsers.set(projectId, new Map());
     }
+    if (!this.socketProjects.has(client.id)) {
+      this.socketProjects.set(client.id, new Set());
+    }
 
     const boardUser: BoardUser = {
       userId: clientUser.userId,
@@ -186,9 +195,18 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
       users: currentUsers,
     });
 
-    console.log(`User ${clientUser.username} joined project ${projectId}`);
-
     return { success: true, users: currentUsers };
+  }
+
+  private async ensureClientAuthenticated(client: AuthenticatedSocket) {
+    const pendingAuth = this.clientAuthPromises.get(client.id);
+    if (pendingAuth) {
+      try {
+        await pendingAuth;
+      } catch {
+        // Authentication failure is already handled in authenticateClient
+      }
+    }
   }
 
   @SubscribeMessage(WebSocketEvents.LEAVE_PROJECT)
@@ -235,8 +253,6 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Update socket tracking
     this.socketProjects.get(client.id)?.delete(projectId);
-
-    console.log(`User ${client.user.username} left project ${projectId}`);
   }
 
   // Helper to get room name for a project

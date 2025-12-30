@@ -34,8 +34,8 @@ export class CardController {
   }
 
   @Patch(':id/toggle')
-  toggle(@Param('id', ParseIntPipe) id: number) {
-    return this.cardService.toggle(id);
+  toggle(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.cardService.toggle(id, req.user);
   }
 
   @Patch(':id')

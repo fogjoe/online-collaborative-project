@@ -31,25 +31,22 @@ interface UseWebSocketOptions {
 }
 
 export const useWebSocket = (options: UseWebSocketOptions) => {
-  const {
-    projectId,
-    onCardCreated,
-    onCardUpdated,
-    onCardMoved,
-    onCardDeleted,
-    onCommentAdded,
-    onMemberJoined,
-    onListCreated,
-    onUserJoined,
-    onUserLeft,
-    onBoardUsers
-  } = options
+  const { projectId } = options
+
+  // Use refs for callbacks to avoid reconnection on callback changes
+  const callbacksRef = useRef(options)
+
+  // Update callbacks ref in useEffect to avoid accessing ref during render
+  useEffect(() => {
+    callbacksRef.current = options
+  })
 
   const socketRef = useRef<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [boardUsers, setBoardUsers] = useState<BoardUser[]>([])
+  const currentProjectRef = useRef<number | null>(null)
 
-  // Connect to WebSocket server
+  // Stable connect function that doesn't change
   const connect = useCallback(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -57,129 +54,155 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
       return
     }
 
+    // Don't reconnect if already connected
     if (socketRef.current?.connected) {
       return
+    }
+
+    // Disconnect existing socket if any
+    if (socketRef.current) {
+      socketRef.current.disconnect()
     }
 
     const socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     })
 
     socket.on('connect', () => {
       console.log('WebSocket connected')
       setIsConnected(true)
 
-      // Join the project room
-      socket.emit(WebSocketEvents.JOIN_PROJECT, { projectId }, (response: { success: boolean; users?: BoardUser[] }) => {
-        if (response.success && response.users) {
-          setBoardUsers(response.users)
-        }
-      })
+      // Join the project room if we have a projectId
+      const pid = currentProjectRef.current
+      if (pid) {
+        socket.emit(WebSocketEvents.JOIN_PROJECT, { projectId: pid }, (response: { success: boolean; users?: BoardUser[] }) => {
+          if (response.success && response.users) {
+            setBoardUsers(response.users)
+          }
+        })
+      }
     })
 
-    socket.on('disconnect', () => {
-      console.log('WebSocket disconnected')
+    socket.on('disconnect', reason => {
+      console.log('WebSocket disconnected:', reason)
       setIsConnected(false)
+    })
+
+    socket.on('connect_error', error => {
+      console.error('WebSocket connection error:', error.message)
     })
 
     socket.on('error', (error: { message: string }) => {
       console.error('WebSocket error:', error.message)
     })
 
-    // Card events
+    // Card events - use refs to get latest callbacks
     socket.on(WebSocketEvents.CARD_CREATED, (payload: CardCreatedPayload) => {
-      if (payload.projectId === projectId) {
-        onCardCreated?.(payload)
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onCardCreated?.(payload)
       }
     })
 
     socket.on(WebSocketEvents.CARD_UPDATED, (payload: CardUpdatedPayload) => {
-      if (payload.projectId === projectId) {
-        onCardUpdated?.(payload)
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onCardUpdated?.(payload)
       }
     })
 
     socket.on(WebSocketEvents.CARD_MOVED, (payload: CardMovedPayload) => {
-      if (payload.projectId === projectId) {
-        onCardMoved?.(payload)
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onCardMoved?.(payload)
       }
     })
 
     socket.on(WebSocketEvents.CARD_DELETED, (payload: CardDeletedPayload) => {
-      if (payload.projectId === projectId) {
-        onCardDeleted?.(payload)
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onCardDeleted?.(payload)
       }
     })
 
     // Comment events
     socket.on(WebSocketEvents.COMMENT_ADDED, (payload: CommentAddedPayload) => {
-      if (payload.projectId === projectId) {
-        onCommentAdded?.(payload)
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onCommentAdded?.(payload)
       }
     })
 
     // Member events
     socket.on(WebSocketEvents.MEMBER_JOINED, (payload: MemberJoinedPayload) => {
-      if (payload.projectId === projectId) {
-        onMemberJoined?.(payload)
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onMemberJoined?.(payload)
       }
     })
 
     // List events
     socket.on(WebSocketEvents.LIST_CREATED, (payload: ListCreatedPayload) => {
-      if (payload.projectId === projectId) {
-        onListCreated?.(payload)
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onListCreated?.(payload)
       }
     })
 
     // Presence events
     socket.on(WebSocketEvents.USER_JOINED_BOARD, (payload: PresencePayload) => {
-      if (payload.projectId === projectId) {
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
         setBoardUsers(prev => {
-          // Avoid duplicates
           if (prev.some(u => u.userId === payload.user.userId)) {
             return prev
           }
           return [...prev, payload.user]
         })
-        onUserJoined?.(payload)
+        callbacksRef.current.onUserJoined?.(payload)
       }
     })
 
     socket.on(WebSocketEvents.USER_LEFT_BOARD, (payload: PresencePayload) => {
-      if (payload.projectId === projectId) {
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
         setBoardUsers(prev => prev.filter(u => u.userId !== payload.user.userId))
-        onUserLeft?.(payload)
+        callbacksRef.current.onUserLeft?.(payload)
       }
     })
 
     socket.on(WebSocketEvents.BOARD_USERS, (payload: BoardUsersPayload) => {
-      if (payload.projectId === projectId) {
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
         setBoardUsers(payload.users)
-        onBoardUsers?.(payload)
+        callbacksRef.current.onBoardUsers?.(payload)
       }
     })
 
     socketRef.current = socket
-  }, [projectId, onCardCreated, onCardUpdated, onCardMoved, onCardDeleted, onCommentAdded, onMemberJoined, onListCreated, onUserJoined, onUserLeft, onBoardUsers])
+  }, []) // No dependencies - only runs once
 
-  // Disconnect from WebSocket server
+  // Disconnect function
   const disconnect = useCallback(() => {
     if (socketRef.current) {
-      // Leave project room before disconnecting
-      socketRef.current.emit(WebSocketEvents.LEAVE_PROJECT, { projectId })
+      const pid = currentProjectRef.current
+      if (pid) {
+        socketRef.current.emit(WebSocketEvents.LEAVE_PROJECT, { projectId: pid })
+      }
       socketRef.current.disconnect()
       socketRef.current = null
       setIsConnected(false)
       setBoardUsers([])
     }
-  }, [projectId])
+  }, [])
 
-  // Connect on mount and disconnect on unmount
+  // Connect on mount, disconnect on unmount
   useEffect(() => {
     connect()
 
@@ -188,13 +211,21 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
     }
   }, [connect, disconnect])
 
-  // Reconnect when projectId changes
+  // Handle project changes - join new room when projectId changes
   useEffect(() => {
-    if (socketRef.current?.connected) {
-      // Leave old room and join new room
+    const previousProjectId = currentProjectRef.current
+    currentProjectRef.current = projectId
+
+    if (socketRef.current?.connected && projectId) {
+      // Leave previous project room if different
+      if (previousProjectId && previousProjectId !== projectId) {
+        socketRef.current.emit(WebSocketEvents.LEAVE_PROJECT, { projectId: previousProjectId })
+      }
+
+      // Join new project room
       socketRef.current.emit(WebSocketEvents.JOIN_PROJECT, { projectId }, (response: { success: boolean; users?: BoardUser[] }) => {
-        if (response.success && response.users) {
-          setBoardUsers(response.users)
+        if (response.success) {
+          setBoardUsers(response.users || [])
         }
       })
     }
