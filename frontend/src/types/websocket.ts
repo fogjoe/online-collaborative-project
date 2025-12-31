@@ -24,6 +24,7 @@ export enum WebSocketEvents {
   USER_JOINED_BOARD = 'presence:user_joined',
   USER_LEFT_BOARD = 'presence:user_left',
   BOARD_USERS = 'presence:board_users',
+  ATTACHMENTS_UPDATED = 'attachment:updated',
 }
 
 export interface BoardUser {
@@ -148,4 +149,20 @@ export interface PresencePayload {
 export interface BoardUsersPayload {
   projectId: number
   users: BoardUser[]
+}
+
+export interface AttachmentDetails {
+  id: number
+  originalName: string
+  fileName: string
+  mimeType: string
+  size: number
+  url: string
+  createdAt: string
+}
+
+export interface AttachmentsUpdatedPayload {
+  projectId: number
+  cardId: number
+  attachments: AttachmentDetails[]
 }

@@ -19,7 +19,8 @@ import {
   CardMovedPayload,
   CardDeletedPayload,
   CommentAddedPayload,
-  MemberJoinedPayload
+  MemberJoinedPayload,
+  AttachmentsUpdatedPayload
 } from '@/types/websocket'
 
 enum ListStatus {
@@ -112,6 +113,7 @@ export const BoardPage = () => {
   const [dbLists, setDbLists] = useState<DbList[]>([])
   const [cardsByListId, setCardsByListId] = useState<Record<number, Card[]>>({})
   const [members, setMembers] = useState<User[]>([])
+  const [commentRefreshKeys, setCommentRefreshKeys] = useState<Record<number, number>>({})
 
   // UI State
   const [addingCardToListId, setAddingCardToListId] = useState<number | null>(null)
@@ -217,6 +219,11 @@ export const BoardPage = () => {
   }, [user?.id])
 
   const handleWebSocketCommentAdded = useCallback((payload: CommentAddedPayload) => {
+    setCommentRefreshKeys(prev => ({
+      ...prev,
+      [payload.cardId]: (prev[payload.cardId] ?? 0) + 1
+    }))
+
     if (payload.comment.user.id === user?.id) return
     toast.info(`${payload.comment.user.username} added a comment`)
   }, [user?.id])
@@ -229,6 +236,28 @@ export const BoardPage = () => {
     toast.info(`${payload.member.username} joined the project`)
   }, [])
 
+  const handleWebSocketAttachmentsUpdated = useCallback((payload: AttachmentsUpdatedPayload) => {
+    setCardsByListId(prev => {
+      const newMap: Record<number, Card[]> = {}
+      for (const listId in prev) {
+        newMap[listId] = prev[listId].map(card =>
+          card.id === payload.cardId ? { ...card, attachments: payload.attachments } : card
+        )
+      }
+      return newMap
+    })
+
+    setSelectedCard(prev => {
+      if (prev?.id === payload.cardId) {
+        return {
+          ...prev,
+          attachments: payload.attachments as Attachment[]
+        }
+      }
+      return prev
+    })
+  }, [])
+
   // --- WebSocket Connection ---
   const { isConnected, boardUsers } = useWebSocket({
     projectId,
@@ -237,7 +266,8 @@ export const BoardPage = () => {
     onCardMoved: handleWebSocketCardMoved,
     onCardDeleted: handleWebSocketCardDeleted,
     onCommentAdded: handleWebSocketCommentAdded,
-    onMemberJoined: handleWebSocketMemberJoined
+    onMemberJoined: handleWebSocketMemberJoined,
+    onAttachmentsUpdated: handleWebSocketAttachmentsUpdated
   })
 
   // --- Data Fetching ---
@@ -682,6 +712,7 @@ export const BoardPage = () => {
         onUnassign={handleUnassignMember}
         projectId={Number(projectId)}
         onCardUpdate={fetchData}
+        commentRefreshKey={selectedCard ? commentRefreshKeys[selectedCard.id] ?? 0 : undefined}
       />
 
       <InviteMemberDialog isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} onInvite={handleInviteUser} />

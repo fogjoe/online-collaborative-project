@@ -38,6 +38,7 @@ interface EditCardDialogProps {
 
   projectId: number
   onCardUpdate: () => Promise<void>
+  commentRefreshKey?: number
 }
 
 type CardLabel = CardType['labels'][number]
@@ -52,7 +53,19 @@ const getInitials = (name: string) => {
     .slice(0, 2)
 }
 
-export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projectMembers, onAssign, onUnassign, projectId, onCardUpdate }: EditCardDialogProps) => {
+export const EditCardDialog = ({
+  card,
+  isOpen,
+  onClose,
+  onSave,
+  onDelete,
+  projectMembers,
+  onAssign,
+  onUnassign,
+  projectId,
+  onCardUpdate,
+  commentRefreshKey
+}: EditCardDialogProps) => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -222,7 +235,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
           </div>
 
           <div className="pb-2">
-            <CardComments cardId={card.id} />
+            <CardComments cardId={card.id} refreshKey={commentRefreshKey} />
           </div>
         </div>
 

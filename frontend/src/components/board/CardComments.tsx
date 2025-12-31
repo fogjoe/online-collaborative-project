@@ -21,9 +21,10 @@ interface Comment {
 
 interface CardCommentsProps {
   cardId: number
+  refreshKey?: number
 }
 
-export const CardComments = ({ cardId }: CardCommentsProps) => {
+export const CardComments = ({ cardId, refreshKey }: CardCommentsProps) => {
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -39,7 +40,7 @@ export const CardComments = ({ cardId }: CardCommentsProps) => {
   useEffect(() => {
     loadComments()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardId])
+  }, [cardId, refreshKey])
 
   const loadComments = async () => {
     try {

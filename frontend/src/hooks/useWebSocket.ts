@@ -11,7 +11,8 @@ import {
   MemberJoinedPayload,
   ListCreatedPayload,
   PresencePayload,
-  BoardUsersPayload
+  BoardUsersPayload,
+  AttachmentsUpdatedPayload
 } from '@/types/websocket'
 
 const SOCKET_URL = 'http://localhost:7000/board'
@@ -28,6 +29,7 @@ interface UseWebSocketOptions {
   onUserJoined?: (payload: PresencePayload) => void
   onUserLeft?: (payload: PresencePayload) => void
   onBoardUsers?: (payload: BoardUsersPayload) => void
+  onAttachmentsUpdated?: (payload: AttachmentsUpdatedPayload) => void
 }
 
 export const useWebSocket = (options: UseWebSocketOptions) => {
@@ -182,6 +184,13 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
       if (payload.projectId === pid) {
         setBoardUsers(payload.users)
         callbacksRef.current.onBoardUsers?.(payload)
+      }
+    })
+
+    socket.on(WebSocketEvents.ATTACHMENTS_UPDATED, (payload: AttachmentsUpdatedPayload) => {
+      const pid = currentProjectRef.current
+      if (payload.projectId === pid) {
+        callbacksRef.current.onAttachmentsUpdated?.(payload)
       }
     })
 

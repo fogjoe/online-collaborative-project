@@ -9,6 +9,7 @@ import {
   CommentAddedPayload,
   MemberJoinedPayload,
   ListCreatedPayload,
+  AttachmentsUpdatedPayload,
 } from './websocket.types';
 
 @Injectable()
@@ -67,6 +68,13 @@ export class WebsocketService {
     this.boardGateway.server
       .to(room)
       .emit(WebSocketEvents.LIST_CREATED, payload);
+  }
+
+  emitAttachmentsUpdated(payload: AttachmentsUpdatedPayload) {
+    const room = this.boardGateway.getProjectRoom(payload.projectId);
+    this.boardGateway.server
+      .to(room)
+      .emit(WebSocketEvents.ATTACHMENTS_UPDATED, payload);
   }
 
   // Get current users viewing a project board
