@@ -6,7 +6,7 @@ import { EditCardDialog } from '@/components/board/EditCardDialog'
 import { InviteMemberDialog } from '@/components/board/InviteMemberDialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Plus, Check, UserPlus, MoreHorizontal, Paperclip, Activity, Wifi, WifiOff } from 'lucide-react'
+import { Plus, Check, UserPlus, MoreHorizontal, Paperclip, Activity, Wifi, WifiOff, Clock, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { listApi, cardApi, projectApi } from '@/services/api'
 import { CardLabelsPreview } from '@/components/board/CardLabelsPreview'
@@ -22,6 +22,7 @@ import {
   MemberJoinedPayload,
   AttachmentsUpdatedPayload
 } from '@/types/websocket'
+import { formatDistanceToNow } from 'date-fns'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -58,6 +59,7 @@ export interface Card {
   description?: string
   order: number
   isCompleted: boolean
+  dueDate?: string | null
   assignees: User[]
   labels: Label[]
   attachments: Attachment[]
@@ -103,6 +105,25 @@ const getInitials = (name: string) => {
     .slice(0, 2)
 }
 
+const DAY_IN_MS = 1000 * 60 * 60 * 24
+
+const getDueInsights = (card: Card) => {
+  if (!card.dueDate || card.isCompleted) return null
+  const dueDate = new Date(card.dueDate)
+  if (Number.isNaN(dueDate.getTime())) return null
+
+  const now = Date.now()
+  const isOverdue = !card.isCompleted && dueDate.getTime() < now
+  const isDueSoon = !isOverdue && dueDate.getTime() - now <= DAY_IN_MS
+
+  return {
+    dueDate,
+    isOverdue,
+    isDueSoon,
+    label: formatDistanceToNow(dueDate, { addSuffix: true })
+  }
+}
+
 // --- Main Component ---
 export const BoardPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -137,6 +158,7 @@ export const BoardPage = () => {
       description: payload.card.description,
       order: payload.card.order,
       isCompleted: payload.card.isCompleted,
+      dueDate: payload.card.dueDate ?? null,
       assignees: payload.card.assignees as User[],
       labels: payload.card.labels as Label[],
       attachments: payload.card.attachments as Attachment[]
@@ -163,6 +185,9 @@ export const BoardPage = () => {
             if (payload.updates.description !== undefined) updated.description = payload.updates.description
             if (payload.updates.isCompleted !== undefined) updated.isCompleted = payload.updates.isCompleted
             if (payload.updates.labels !== undefined) updated.labels = payload.updates.labels as Label[]
+            if (payload.updates.dueDate !== undefined) {
+              updated.dueDate = (payload.updates.dueDate as string | null) ?? null
+            }
             return updated
           }
           return card
@@ -383,6 +408,7 @@ export const BoardPage = () => {
       const res = await cardApi.create({ title: newCardTitle, description: newCardDesc, listId })
       const createdCard: Card = {
         ...res.data,
+        dueDate: res.data?.dueDate ?? null,
         attachments: res.data?.attachments || []
       }
       setCardsByListId(prev => ({
@@ -405,13 +431,23 @@ export const BoardPage = () => {
     })
   }
 
-  const handleUpdateCard = async (cardId: number, data: { title: string; description: string; labels: Label[] }) => {
-    updateLocalCardState(cardId, c => ({ ...c, ...data }))
+  const handleUpdateCard = async (
+    cardId: number,
+    data: { title: string; description: string; labels: Label[]; dueDate: string | null }
+  ) => {
+    updateLocalCardState(cardId, c => ({
+      ...c,
+      title: data.title,
+      description: data.description,
+      labels: data.labels,
+      dueDate: data.dueDate
+    }))
     try {
       await cardApi.update(cardId, {
         title: data.title,
         description: data.description,
-        labelIds: data.labels.map(label => label.id)
+        labelIds: data.labels.map(label => label.id),
+        dueDate: data.dueDate
       })
       toast.success('Card updated')
     } catch {
@@ -564,79 +600,100 @@ export const BoardPage = () => {
                         >
                           {column.cards.map((card, index) => (
                             <Draggable key={card.id} draggableId={card.id.toString()} index={index}>
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  onClick={() => {
-                                    setSelectedCard(card)
-                                    setIsEditModalOpen(true)
-                                  }}
-                                  style={{ ...provided.draggableProps.style }}
-                                  className={`
-                                    bg-white p-4 rounded-xl border group relative flex-shrink-0 cursor-pointer
-                                    ${
-                                      snapshot.isDragging
-                                        ? 'shadow-2xl ring-1 ring-teal-600/20 rotate-2 scale-105 z-50 border-teal-600/20'
-                                        : 'shadow-sm border-slate-200/60 hover:shadow-md hover:border-slate-300/60'
-                                    }
-                                    transition-all duration-200 ease-in-out
-                                  `}
-                                >
-                                  {/* Card Content */}
-                                  <div className="flex flex-col gap-2">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <h4 className={`text-slate-900 font-medium text-[15px] leading-snug ${card.isCompleted ? 'line-through text-slate-400' : ''}`}>{card.title}</h4>
-                                    </div>
+                              {(provided, snapshot) => {
+                                const dueBadge = getDueInsights(card)
+                                const cardVisualState = snapshot.isDragging
+                                  ? 'shadow-2xl ring-1 ring-teal-600/20 rotate-2 scale-105 z-50 border-teal-600/20'
+                                  : dueBadge?.isOverdue
+                                    ? 'border-red-200/80 bg-red-50/70 shadow-md hover:border-red-300/80'
+                                    : 'shadow-sm border-slate-200/60 hover:shadow-md hover:border-slate-300/60'
 
-                                    {card.description && <p className={`text-[13px] line-clamp-2 ${card.isCompleted ? 'text-slate-300' : 'text-slate-500'}`}>{card.description}</p>}
-
-                                    <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-50 gap-2">
-                                      {/* Avatars - Left */}
-                                      <div className="flex -space-x-2 flex-shrink-0">
-                                        {card.assignees?.slice(0, 3).map(user => (
-                                          <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
-                                            <AvatarImage src={user.avatarUrl} />
-                                            <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
-                                          </Avatar>
-                                        ))}
-                                        {card.assignees && card.assignees.length > 3 && (
-                                          <span className="h-6 w-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] font-medium text-slate-500">
-                                            +{card.assignees.length - 3}
-                                          </span>
-                                        )}
+                                return (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    onClick={() => {
+                                      setSelectedCard(card)
+                                      setIsEditModalOpen(true)
+                                    }}
+                                    style={{ ...provided.draggableProps.style }}
+                                    className={`
+                                      bg-white p-4 rounded-xl border group relative flex-shrink-0 cursor-pointer
+                                      ${cardVisualState}
+                                      transition-all duration-200 ease-in-out
+                                    `}
+                                  >
+                                    {/* Card Content */}
+                                    <div className="flex flex-col gap-2">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <h4 className={`text-slate-900 font-medium text-[15px] leading-snug ${card.isCompleted ? 'line-through text-slate-400' : ''}`}>{card.title}</h4>
                                       </div>
 
-                                      <div className="flex-1 flex justify-center">
-                                        <CardLabelsPreview labels={card.labels} />
-                                      </div>
+                                      {card.description && <p className={`text-[13px] line-clamp-2 ${card.isCompleted ? 'text-slate-300' : 'text-slate-500'}`}>{card.description}</p>}
 
-                                      <div className="flex items-center gap-2">
-                                        {card.attachments?.length > 0 && (
-                                          <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                                            <Paperclip size={12} />
-                                            {card.attachments.length}
-                                          </div>
-                                        )}
-
-                                        <button
-                                          onClick={e => {
-                                            e.stopPropagation()
-                                            handleToggleCardStatus(card.id, card.isCompleted)
-                                          }}
-                                          className={`
-                                            h-6 w-6 rounded-full flex items-center justify-center transition-all flex-shrink-0
-                                            ${card.isCompleted ? 'bg-emerald-500 text-white shadow-sm scale-110' : 'bg-slate-100 text-slate-300 hover:bg-emerald-100 hover:text-emerald-500'}
-                                          `}
+                                      {dueBadge && (
+                                        <div
+                                          className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full w-fit ${
+                                            dueBadge.isOverdue
+                                              ? 'bg-red-100 text-red-700'
+                                              : dueBadge.isDueSoon
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-slate-100 text-slate-500'
+                                          }`}
                                         >
-                                          <Check size={12} strokeWidth={3} />
-                                        </button>
+                                          {dueBadge.isOverdue ? <AlertTriangle size={11} /> : <Clock size={11} />}
+                                          <span>{dueBadge.isOverdue ? 'Overdue' : dueBadge.isDueSoon ? 'Due soon' : 'Due'}</span>
+                                          <span>{dueBadge.label}</span>
+                                        </div>
+                                      )}
+
+                                      <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-50 gap-2">
+                                        {/* Avatars - Left */}
+                                        <div className="flex -space-x-2 flex-shrink-0">
+                                          {card.assignees?.slice(0, 3).map(user => (
+                                            <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
+                                              <AvatarImage src={user.avatarUrl} />
+                                              <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
+                                            </Avatar>
+                                          ))}
+                                          {card.assignees && card.assignees.length > 3 && (
+                                            <span className="h-6 w-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] font-medium text-slate-500">
+                                              +{card.assignees.length - 3}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div className="flex-1 flex justify-center">
+                                          <CardLabelsPreview labels={card.labels} />
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          {card.attachments?.length > 0 && (
+                                            <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                              <Paperclip size={12} />
+                                              {card.attachments.length}
+                                            </div>
+                                          )}
+
+                                          <button
+                                            onClick={e => {
+                                              e.stopPropagation()
+                                              handleToggleCardStatus(card.id, card.isCompleted)
+                                            }}
+                                            className={`
+                                              h-6 w-6 rounded-full flex items-center justify-center transition-all flex-shrink-0
+                                              ${card.isCompleted ? 'bg-emerald-500 text-white shadow-sm scale-110' : 'bg-slate-100 text-slate-300 hover:bg-emerald-100 hover:text-emerald-500'}
+                                            `}
+                                          >
+                                            <Check size={12} strokeWidth={3} />
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              )}
+                                )
+                              }}
                             </Draggable>
                           ))}
                           {provided.placeholder}

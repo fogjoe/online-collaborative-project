@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { User, Mail, Save, Loader2 } from 'lucide-react'
+import { User, Mail, Save, Loader2, Bell } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { userApi } from '@/services/api'
 import { Button } from '@/components/ui/button'
@@ -9,14 +9,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner' // Assuming you use sonner or similar
 
+interface ProfileFormData {
+  username: string
+  email: string
+  avatarUrl: string
+  notifyDueSoonInApp: boolean
+  notifyDueSoonEmail: boolean
+  notifyOverdueInApp: boolean
+  notifyOverdueEmail: boolean
+}
+
+type NotificationPreferenceKey = keyof Pick<
+  ProfileFormData,
+  'notifyDueSoonInApp' | 'notifyDueSoonEmail' | 'notifyOverdueInApp' | 'notifyOverdueEmail'
+>
+
 export const ProfilePage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProfileFormData>({
     username: '',
     email: '',
-    avatarUrl: ''
+    avatarUrl: '',
+    notifyDueSoonInApp: true,
+    notifyDueSoonEmail: true,
+    notifyOverdueInApp: true,
+    notifyOverdueEmail: true
   })
 
   // Load initial data
@@ -32,7 +51,11 @@ export const ProfilePage = () => {
       setFormData({
         username: user.username || '',
         email: user.email || '',
-        avatarUrl: user.avatarUrl || ''
+        avatarUrl: user.avatarUrl || '',
+        notifyDueSoonInApp: user.notifyDueSoonInApp ?? true,
+        notifyDueSoonEmail: user.notifyDueSoonEmail ?? true,
+        notifyOverdueInApp: user.notifyOverdueInApp ?? true,
+        notifyOverdueEmail: user.notifyOverdueEmail ?? true
       })
     } catch (error) {
       console.error(error)
@@ -59,6 +82,40 @@ export const ProfilePage = () => {
 
   // Helper for initials
   const initials = formData.username ? formData.username.substring(0, 2).toUpperCase() : 'ME'
+
+  const togglePreference = (key: NotificationPreferenceKey) => {
+    setFormData(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }))
+  }
+
+  const preferenceDescriptors: Array<{
+    key: NotificationPreferenceKey
+    label: string
+    description: string
+  }> = [
+    {
+      key: 'notifyDueSoonInApp',
+      label: 'Due soon reminders (in-app)',
+      description: 'Get notifications 24 hours before a card is due.'
+    },
+    {
+      key: 'notifyDueSoonEmail',
+      label: 'Due soon reminders (email)',
+      description: 'Receive an email when a card is one day from its due date.'
+    },
+    {
+      key: 'notifyOverdueInApp',
+      label: 'Overdue alerts (in-app)',
+      description: 'Show alerts when a card is past its due date.'
+    },
+    {
+      key: 'notifyOverdueEmail',
+      label: 'Overdue alerts (email)',
+      description: 'Send a daily email for cards that stay overdue.'
+    }
+  ]
 
   return (
     <DashboardLayout>
@@ -125,6 +182,40 @@ export const ProfilePage = () => {
                 </Button>
               </div>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-slate-500" />
+              <CardTitle>Notification Preferences</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {preferenceDescriptors.map(pref => (
+              <div key={pref.key} className="flex items-center justify-between border rounded-xl px-4 py-3 bg-slate-50/60">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{pref.label}</p>
+                  <p className="text-xs text-slate-500">{pref.description}</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData[pref.key]}
+                  onClick={() => togglePreference(pref.key)}
+                  className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
+                    formData[pref.key] ? 'bg-emerald-500' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                      formData[pref.key] ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>

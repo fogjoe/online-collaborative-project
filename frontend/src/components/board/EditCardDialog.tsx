@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Trash2, Save, AlertTriangle, X } from 'lucide-react'
+import { Trash2, Save, AlertTriangle, X, CalendarClock } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -24,12 +24,16 @@ import { CardComments } from './CardComments'
 import { LabelPopover } from './LabelPopover'
 import { LabelBadge } from './LabelBadge'
 import { CardAttachments } from './CardAttachments'
+import { format, formatDistanceToNow, isPast } from 'date-fns'
 
 interface EditCardDialogProps {
   card: CardType | null
   isOpen: boolean
   onClose: () => void
-  onSave: (cardId: number, data: { title: string; description: string; labels: CardType['labels'] }) => Promise<void>
+  onSave: (
+    cardId: number,
+    data: { title: string; description: string; labels: CardType['labels']; dueDate: string | null }
+  ) => Promise<void>
   onDelete: (cardId: number) => Promise<void>
 
   projectMembers: User[]
@@ -53,6 +57,17 @@ const getInitials = (name: string) => {
     .slice(0, 2)
 }
 
+const DAY_IN_MS = 1000 * 60 * 60 * 24
+
+const toDateTimeLocal = (value?: string | null) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const offset = date.getTimezoneOffset()
+  const local = new Date(date.getTime() - offset * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
 export const EditCardDialog = ({
   card,
   isOpen,
@@ -70,6 +85,7 @@ export const EditCardDialog = ({
   const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedLabels, setSelectedLabels] = useState<CardType['labels']>([])
+  const [dueDateInput, setDueDateInput] = useState('')
 
   // Reset form when card changes
   useEffect(() => {
@@ -77,6 +93,7 @@ export const EditCardDialog = ({
       setTitle(card.title)
       setDescription(card.description || '')
       setSelectedLabels(card.labels || [])
+      setDueDateInput(toDateTimeLocal(card.dueDate))
     }
   }, [card])
 
@@ -92,12 +109,17 @@ export const EditCardDialog = ({
 
   // Filter members who are NOT yet assigned to this card
   const unassignedMembers = card ? projectMembers.filter(m => !card.assignees.some(a => a.id === m.id)) : []
+  const dueDateValue = card?.dueDate ? new Date(card.dueDate) : null
+  const isOverdue = !!card && dueDateValue ? isPast(dueDateValue) && !card.isCompleted : false
+  const isDueSoon = !!card && dueDateValue ? !isOverdue && dueDateValue.getTime() - Date.now() <= DAY_IN_MS : false
+  const dueDistance = dueDateValue ? formatDistanceToNow(dueDateValue, { addSuffix: true }) : ''
 
   const handleSave = async () => {
     if (!card) return
     setIsLoading(true)
     try {
-      await onSave(card.id, { title, description, labels: selectedLabels })
+      const dueDateValue = dueDateInput ? new Date(dueDateInput).toISOString() : null
+      await onSave(card.id, { title, description, labels: selectedLabels, dueDate: dueDateValue })
       await onCardUpdate()
       onClose()
     } finally {
@@ -185,6 +207,40 @@ export const EditCardDialog = ({
                   onUpdate={onCardUpdate}
                   onLabelToggle={handleLocalLabelToggle}
                 />
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Due Date</Label>
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 min-h-[64px] flex items-center">
+                  {dueDateValue ? (
+                    <div className="w-full flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{format(dueDateValue, 'MMM d, yyyy • h:mm a')}</p>
+                        <p className="text-xs text-slate-500">{dueDistance}</p>
+                      </div>
+                      <div
+                        className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                          isOverdue ? 'bg-red-100 text-red-600' : isDueSoon ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        <CalendarClock size={18} />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No due date set</p>
+                  )}
+                </div>
+                <Input
+                  type="datetime-local"
+                  value={dueDateInput}
+                  onChange={e => setDueDateInput(e.target.value)}
+                  className="text-sm"
+                />
+                <div className="flex justify-end">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setDueDateInput('')} className="text-xs text-slate-500 hover:text-slate-700">
+                    Clear date
+                  </Button>
+                </div>
               </div>
 
               {/* ASSIGNEES SECTION */}

@@ -6,6 +6,10 @@ interface User {
   username: string
   email: string
   avatarUrl?: string
+  notifyDueSoonInApp?: boolean
+  notifyDueSoonEmail?: boolean
+  notifyOverdueInApp?: boolean
+  notifyOverdueEmail?: boolean
 }
 
 // 1. Define the shape of the context data

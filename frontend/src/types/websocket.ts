@@ -43,6 +43,7 @@ export interface CardCreatedPayload {
     description?: string
     order: number
     isCompleted: boolean
+    dueDate?: string | null
     assignees: Array<{
       id: number
       username: string
@@ -77,6 +78,7 @@ export interface CardUpdatedPayload {
       name: string
       color: string
     }>
+    dueDate?: string | null
   }
   actor: {
     id: number

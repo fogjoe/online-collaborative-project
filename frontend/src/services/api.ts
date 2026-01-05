@@ -97,13 +97,22 @@ export const listApi = {
 }
 
 export const cardApi = {
-  create: (data: { title: string; listId: number; description?: string }) => apiClient.post(API.createCard, data),
+  create: (data: { title: string; listId: number; description?: string; dueDate?: string | null }) =>
+    apiClient.post(API.createCard, data),
   reorder: (data: { cardId: number; targetListId: number; newOrder: number }) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     apiClient.patch<any, ApiResponse>(API.reorderCards, data),
 
   toggleStatus: (cardId: number) => apiClient.patch(API.toggleCard(cardId)),
-  update: (cardId: number, data: { title?: string; description?: string; labelIds?: number[] }) => apiClient.patch(API.updateCard(cardId), data),
+  update: (
+    cardId: number,
+    data: {
+      title?: string
+      description?: string
+      labelIds?: number[]
+      dueDate?: string | null
+    }
+  ) => apiClient.patch(API.updateCard(cardId), data),
 
   delete: (cardId: number) => apiClient.delete(API.deleteCard(cardId)),
 
@@ -119,7 +128,15 @@ export const notificationApi = {
 
 export const userApi = {
   getProfile: () => apiClient.get(API.profile),
-  updateProfile: (data: { username?: string; email?: string; avatarUrl?: string }) => apiClient.patch(API.profile, data)
+  updateProfile: (data: {
+    username?: string
+    email?: string
+    avatarUrl?: string
+    notifyDueSoonInApp?: boolean
+    notifyDueSoonEmail?: boolean
+    notifyOverdueInApp?: boolean
+    notifyOverdueEmail?: boolean
+  }) => apiClient.patch(API.profile, data)
 }
 
 export const commentApi = {
