@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsDateString,
+  ValidateIf,
+} from 'class-validator';
 
 export class CreateCardDto {
   @IsString()
@@ -12,4 +19,9 @@ export class CreateCardDto {
   @IsNumber()
   @IsNotEmpty()
   listId: number;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsDateString()
+  dueDate?: string | null;
 }

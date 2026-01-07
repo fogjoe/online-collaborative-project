@@ -72,6 +72,10 @@ export class AuthService {
         username: user.username,
         email: user.email,
         avatarUrl: user.avatarUrl,
+        notifyDueSoonInApp: user.notifyDueSoonInApp,
+        notifyDueSoonEmail: user.notifyDueSoonEmail,
+        notifyOverdueInApp: user.notifyOverdueInApp,
+        notifyOverdueEmail: user.notifyOverdueEmail,
       },
     };
   }

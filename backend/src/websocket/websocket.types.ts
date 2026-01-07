@@ -51,6 +51,7 @@ export interface CardCreatedPayload {
     description?: string;
     order: number;
     isCompleted: boolean;
+    dueDate?: Date | string | null;
     assignees: Array<{
       id: number;
       username: string;
@@ -87,6 +88,7 @@ export interface CardUpdatedPayload {
       color: string;
     }>;
     attachments?: AttachmentPayload[];
+    dueDate?: Date | string | null;
   };
   actor: {
     id: number;

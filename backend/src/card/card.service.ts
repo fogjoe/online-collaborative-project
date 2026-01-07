@@ -28,7 +28,7 @@ export class CardService {
   ) {}
 
   async create(createCardDto: CreateCardDto, actor: User) {
-    const { listId, title, description } = createCardDto;
+    const { listId, title, description, dueDate } = createCardDto;
 
     const list = await this.listRepository.findOne({
       where: { id: listId },
@@ -51,6 +51,9 @@ export class CardService {
       order: newOrder,
       list,
       isCompleted: false,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      lastDueSoonReminderAt: null,
+      lastOverdueNotificationAt: null,
     });
 
     const savedCard = await this.cardRepository.save(newCard);
@@ -83,6 +86,7 @@ export class CardService {
         assignees: [],
         labels: [],
         attachments: [],
+        dueDate: savedCard.dueDate,
       },
       actor: {
         id: actor.id,
@@ -196,7 +200,7 @@ export class CardService {
   }
 
   async update(id: number, updateCardDto: UpdateCardDto, actor: User) {
-    const { labelIds, ...partialData } = updateCardDto;
+    const { labelIds, dueDate, ...partialData } = updateCardDto;
     const card = await this.cardRepository.findOne({
       where: { id },
       relations: ['labels', 'list', 'list.project'],
@@ -210,11 +214,18 @@ export class CardService {
       title: card.title,
       description: card.description,
       labelIds: card.labels.map((label) => label.id),
+      dueDate: card.dueDate,
     };
 
     // Merge the updates into the existing card
     // properties in dto will overwrite card properties
     const updatedCard = this.cardRepository.merge(card, partialData);
+
+    if (dueDate !== undefined) {
+      updatedCard.dueDate = dueDate ? new Date(dueDate) : null;
+      updatedCard.lastDueSoonReminderAt = null;
+      updatedCard.lastOverdueNotificationAt = null;
+    }
 
     if (labelIds !== undefined) {
       const labels = labelIds.length
@@ -234,6 +245,7 @@ export class CardService {
         title: saved.title,
         description: saved.description,
         labelIds: saved.labels?.map((label) => label.id) ?? [],
+        dueDate: saved.dueDate,
       },
       metadata: { cardId: saved.id },
     });
@@ -250,6 +262,7 @@ export class CardService {
           name: label.name,
           color: label.color,
         })),
+        dueDate: saved.dueDate,
       },
       actor: {
         id: actor.id,

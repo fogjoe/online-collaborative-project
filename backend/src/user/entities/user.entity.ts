@@ -39,4 +39,16 @@ export class User {
 
   @Column({ nullable: true })
   avatarUrl: string;
+
+  @Column({ type: 'boolean', default: true })
+  notifyDueSoonInApp: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  notifyDueSoonEmail: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  notifyOverdueInApp: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  notifyOverdueEmail: boolean;
 }

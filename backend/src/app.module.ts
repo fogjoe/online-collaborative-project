@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { BullModule } from '@nestjs/bull';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,13 +20,26 @@ import { LabelsModule } from './labels/labels.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ActivityModule } from './activity/activity.module';
 import { WebsocketModule } from './websocket/websocket.module';
+import { MailModule } from './mail/mail.module';
+import { ReminderModule } from './reminder/reminder.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get<string>('REDIS_HOST') ?? 'localhost',
+          port: Number(configService.get<number>('REDIS_PORT') ?? 6379),
+        },
+      }),
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -53,6 +68,8 @@ import { WebsocketModule } from './websocket/websocket.module';
     AttachmentsModule,
     ActivityModule,
     WebsocketModule,
+    MailModule,
+    ReminderModule,
   ],
   controllers: [AppController],
   providers: [

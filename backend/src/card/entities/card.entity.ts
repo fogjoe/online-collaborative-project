@@ -36,6 +36,15 @@ export class Card {
   @Column({ type: 'boolean', default: false })
   isCompleted: boolean;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  dueDate: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastDueSoonReminderAt: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastOverdueNotificationAt: Date | null;
+
   /**
    * Relationship: Many Cards belong to One List.
    */

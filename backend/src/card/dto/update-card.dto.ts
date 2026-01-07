@@ -4,6 +4,8 @@ import {
   IsBoolean,
   IsArray,
   IsInt,
+  IsDateString,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -25,4 +27,9 @@ export class UpdateCardDto {
   @IsInt({ each: true })
   @Type(() => Number)
   labelIds?: number[];
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsDateString()
+  dueDate?: string | null;
 }
