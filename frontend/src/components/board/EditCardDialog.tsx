@@ -81,21 +81,76 @@ export const EditCardDialog = ({
   onCardUpdate,
   commentRefreshKey
 }: EditCardDialogProps) => {
+  const [cardSnapshot, setCardSnapshot] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedLabels, setSelectedLabels] = useState<CardType['labels']>([])
   const [dueDateInput, setDueDateInput] = useState('')
+  const [assignedMembers, setAssignedMembers] = useState<CardType['assignees']>([])
+  const [assigneeSelectValue, setAssigneeSelectValue] = useState<string>()
 
-  // Reset form when card changes
+  const buildSnapshot = (source: CardType) => {
+    const labelIds = (source.labels || []).map(label => label.id).sort((a, b) => a - b)
+    const assigneeIds = (source.assignees || []).map(assignee => assignee.id).sort((a, b) => a - b)
+    return JSON.stringify({
+      id: source.id,
+      title: source.title || '',
+      description: source.description || '',
+      dueDate: source.dueDate || '',
+      labelIds,
+      assigneeIds
+    })
+  }
+
+  const hydrateFromCard = (source: CardType) => {
+    setTitle(source.title)
+    setDescription(source.description || '')
+    setSelectedLabels(source.labels || [])
+    setDueDateInput(toDateTimeLocal(source.dueDate))
+    setAssignedMembers(source.assignees || [])
+  }
+
   useEffect(() => {
-    if (card) {
-      setTitle(card.title)
-      setDescription(card.description || '')
-      setSelectedLabels(card.labels || [])
-      setDueDateInput(toDateTimeLocal(card.dueDate))
+    if (!isOpen) return
+    if (!card) {
+      setTitle('')
+      setDescription('')
+      setSelectedLabels([])
+      setDueDateInput('')
+      setAssignedMembers([])
+      setCardSnapshot(null)
+      return
     }
-  }, [card])
+
+    const snapshot = buildSnapshot(card)
+    if (snapshot !== cardSnapshot) {
+      hydrateFromCard(card)
+      setCardSnapshot(snapshot)
+    }
+  }, [card, isOpen, cardSnapshot])
+
+  const resetForm = () => {
+    if (!card) {
+      setTitle('')
+      setDescription('')
+      setSelectedLabels([])
+      setDueDateInput('')
+      setAssignedMembers([])
+      setAssigneeSelectValue(undefined)
+      setCardSnapshot(null)
+      return
+    }
+
+    hydrateFromCard(card)
+    setCardSnapshot(buildSnapshot(card))
+    setAssigneeSelectValue(undefined)
+  }
+
+  const handleDialogClose = () => {
+    resetForm()
+    onClose()
+  }
 
   const handleLocalLabelToggle = (labelData: CardLabel, shouldAdd: boolean) => {
     setSelectedLabels(prev => {
@@ -107,21 +162,53 @@ export const EditCardDialog = ({
     })
   }
 
+  const handleAssignLocal = (userId: number) => {
+    if (!card) return
+    const userToAdd = projectMembers.find(m => m.id === userId)
+    if (!userToAdd) return
+    setAssignedMembers(prev => {
+      if (prev.some(u => u.id === userId)) return prev
+      return [...prev, userToAdd]
+    })
+    setAssigneeSelectValue(undefined)
+  }
+
+  const handleUnassignLocal = (userId: number) => {
+    setAssignedMembers(prev => prev.filter(u => u.id !== userId))
+  }
+
   // Filter members who are NOT yet assigned to this card
-  const unassignedMembers = card ? projectMembers.filter(m => !card.assignees.some(a => a.id === m.id)) : []
+  const unassignedMembers = card ? projectMembers.filter(m => !assignedMembers.some(a => a.id === m.id)) : []
   const dueDateValue = card?.dueDate ? new Date(card.dueDate) : null
   const isOverdue = !!card && dueDateValue ? isPast(dueDateValue) && !card.isCompleted : false
   const isDueSoon = !!card && dueDateValue ? !isOverdue && dueDateValue.getTime() - Date.now() <= DAY_IN_MS : false
   const dueDistance = dueDateValue ? formatDistanceToNow(dueDateValue, { addSuffix: true }) : ''
+
+  const applyAssigneeChanges = async () => {
+    if (!card) return
+    const originalIds = card.assignees.map(a => a.id)
+    const currentIds = assignedMembers.map(a => a.id)
+
+    const toAdd = currentIds.filter(id => !originalIds.includes(id))
+    const toRemove = originalIds.filter(id => !currentIds.includes(id))
+
+    for (const userId of toAdd) {
+      await onAssign(card.id, userId)
+    }
+    for (const userId of toRemove) {
+      await onUnassign(card.id, userId)
+    }
+  }
 
   const handleSave = async () => {
     if (!card) return
     setIsLoading(true)
     try {
       const dueDateValue = dueDateInput ? new Date(dueDateInput).toISOString() : null
+      await applyAssigneeChanges()
       await onSave(card.id, { title, description, labels: selectedLabels, dueDate: dueDateValue })
       await onCardUpdate()
-      onClose()
+      handleDialogClose()
     } finally {
       setIsLoading(false)
     }
@@ -132,7 +219,7 @@ export const EditCardDialog = ({
     setIsLoading(true)
     try {
       await onDelete(card.id)
-      onClose()
+      handleDialogClose()
     } finally {
       setIsLoading(false)
     }
@@ -141,7 +228,7 @@ export const EditCardDialog = ({
   if (!card) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={open => !open && handleDialogClose()}>
       {/* Give the dialog a sensible max height so the footer remains visible */}
       <DialogContent className="sm:max-w-[700px] bg-white shadow-2xl border-0 p-0 overflow-hidden gap-0 flex flex-col max-h-[90vh]">
         {/* Header Section */}
@@ -201,10 +288,8 @@ export const EditCardDialog = ({
                   )}
                 </div>
                 <LabelPopover
-                  cardId={card.id}
                   projectId={projectId}
                   activeLabelIds={selectedLabels.map(l => l.id)}
-                  onUpdate={onCardUpdate}
                   onLabelToggle={handleLocalLabelToggle}
                 />
               </div>
@@ -249,9 +334,9 @@ export const EditCardDialog = ({
 
                 {/* List of Assigned Users */}
                 <div className="flex flex-col gap-2">
-                  {card.assignees.length === 0 && <span className="text-xs text-slate-400 italic">No members assigned</span>}
+                  {assignedMembers.length === 0 && <span className="text-xs text-slate-400 italic">No members assigned</span>}
 
-                  {card.assignees.map(user => (
+                  {assignedMembers.map(user => (
                     <div key={user.id} className="group flex items-center justify-between bg-white rounded-md p-2 pl-2 shadow-sm border border-slate-200">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
@@ -260,7 +345,7 @@ export const EditCardDialog = ({
                         </Avatar>
                         <span className="text-xs font-medium text-slate-700 truncate max-w-[110px]">{user.username}</span>
                       </div>
-                      <button onClick={() => onUnassign(card.id, user.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1" title="Remove member">
+                      <button onClick={() => handleUnassignLocal(user.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1" title="Remove member">
                         <X size={14} />
                       </button>
                     </div>
@@ -268,9 +353,21 @@ export const EditCardDialog = ({
                 </div>
 
                 {/* Add Member Dropdown */}
-                <Select onValueChange={val => onAssign(card.id, Number(val))} disabled={unassignedMembers.length === 0}>
+                <Select
+                  value={assigneeSelectValue}
+                  onOpenChange={open => {
+                    if (!open) {
+                      setAssigneeSelectValue(undefined)
+                    }
+                  }}
+                  onValueChange={val => {
+                    setAssigneeSelectValue(undefined)
+                    handleAssignLocal(Number(val))
+                  }}
+                  disabled={unassignedMembers.length === 0}
+                >
                   <SelectTrigger className="w-full h-9 text-xs bg-white border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E] transition-colors">
-                    <SelectValue placeholder={unassignedMembers.length > 0 ? '+ Add Member' : 'All members added'} />
+                    <SelectValue placeholder={unassignedMembers.length !== 0 ? '+ Add Member' : 'All members added'} />
                   </SelectTrigger>
                   <SelectContent align="end">
                     {unassignedMembers.map(user => (
@@ -331,7 +428,7 @@ export const EditCardDialog = ({
 
           {/* Save Actions (Right) */}
           <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose} disabled={isLoading} className="h-9 text-sm border-slate-200 text-slate-700 hover:bg-slate-100">
+            <Button variant="outline" onClick={handleDialogClose} disabled={isLoading} className="h-9 text-sm border-slate-200 text-slate-700 hover:bg-slate-100">
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={isLoading || !title.trim()} className="h-9 text-sm bg-[#0F766E] hover:bg-[#0d655e] text-white shadow-sm px-5">

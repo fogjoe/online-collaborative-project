@@ -25,14 +25,12 @@ interface Label {
 }
 
 interface LabelPopoverProps {
-  cardId: number
   projectId: number
   activeLabelIds: number[] // IDs of labels currently on this card
-  onUpdate: () => Promise<void> // Callback to refresh card data
-  onLabelToggle?: (label: Label, willActivate: boolean) => void
+  onLabelToggle: (label: Label, willActivate: boolean) => void
 }
 
-export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate, onLabelToggle }: LabelPopoverProps) => {
+export const LabelPopover = ({ projectId, activeLabelIds, onLabelToggle }: LabelPopoverProps) => {
   const [labels, setLabels] = useState<Label[]>([])
   const [search, setSearch] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -56,15 +54,9 @@ export const LabelPopover = ({ cardId, projectId, activeLabelIds, onUpdate, onLa
     })()
   }, [loadLabels])
 
-  const handleToggle = async (label: Label) => {
+  const handleToggle = (label: Label) => {
     const willActivate = !activeLabelIds.includes(label.id)
-    try {
-      await labelApi.toggleCardLabel(cardId, label.id)
-      onLabelToggle?.(label, willActivate)
-      await onUpdate() // Refresh parent
-    } catch (error) {
-      console.error('Failed to toggle label', error)
-    }
+    onLabelToggle(label, willActivate)
   }
 
   const handleCreate = async () => {
