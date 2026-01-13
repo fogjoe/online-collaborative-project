@@ -9,7 +9,7 @@ import { useAuth } from '@/context/useAuth'
 import { hashSha256 } from '@/lib/utils'
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -22,7 +22,7 @@ export const LoginPage = () => {
     setError('')
     try {
       const hashedPassword = await hashSha256(password)
-      const response = await authApi.login({ email, password: hashedPassword })
+      const response = await authApi.login({ identifier, password: hashedPassword })
 
       const responseBody = response.data || response
       const responseData = responseBody.data || responseBody
@@ -67,8 +67,8 @@ export const LoginPage = () => {
             <Input
               type="text"
               placeholder="Email address or username"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
               className="h-12 pl-12 bg-white border-gray-200 rounded-xl text-gray-600 focus-visible:ring-0 focus-visible:border-[#115E59] transition-all"
               required
             />

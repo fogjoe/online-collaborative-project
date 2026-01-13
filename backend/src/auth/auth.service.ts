@@ -7,6 +7,8 @@ import { UserService } from '../user/user.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { isEmail } from 'class-validator';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -41,10 +43,17 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const { identifier, password } = loginDto;
 
-    // 1. Find user by email
-    const user = await this.userService.findOneByEmail(email);
+    // 1. Find user by email or username
+    let user: User | null = null;
+    if (isEmail(identifier)) {
+      user = await this.userService.findOneByEmail(identifier);
+    }
+
+    if (!user) {
+      user = await this.userService.findOneByUsername(identifier);
+    }
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }

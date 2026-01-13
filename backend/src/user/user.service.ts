@@ -23,6 +23,10 @@ export class UserService {
     return this.userRepository.findOne({ where: { email } });
   }
 
+  findOneByUsername(username: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { username } });
+  }
+
   async update(id: number, updateUserDto: UpdateUserDto) {
     // 1. Find the current logged-in user (User 5)
     const user = await this.userRepository.findOneBy({ id });
