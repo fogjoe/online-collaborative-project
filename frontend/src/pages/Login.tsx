@@ -37,7 +37,11 @@ export const LoginPage = () => {
       login(accessToken, user)
       navigate('/dashboard')
     } catch (err: unknown) {
-      setError('Invalid credentials.')
+      if (typeof err === 'object' && err !== null && 'message' in err) {
+        setError((err as { message: string }).message)
+      } else {
+        setError('Invalid credentials.')
+      }
       console.log('Login error:', err)
     } finally {
       setIsLoading(false)

@@ -45,17 +45,23 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { identifier, password } = loginDto;
 
-    // 1. Find user by email or username
+    const isIdentifierEmail = isEmail(identifier);
     let user: User | null = null;
-    if (isEmail(identifier)) {
-      user = await this.userService.findOneByEmail(identifier);
-    }
 
-    if (!user) {
+    if (isIdentifierEmail) {
+      user = await this.userService.findOneByEmail(identifier);
+      if (!user) {
+        // Allow usernames that look like emails
+        user = await this.userService.findOneByUsername(identifier);
+        if (!user) {
+          throw new UnauthorizedException('Email not found');
+        }
+      }
+    } else {
       user = await this.userService.findOneByUsername(identifier);
-    }
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      if (!user) {
+        throw new UnauthorizedException('Username not found');
+      }
     }
 
     // 2. Compare the provided password with the stored hash
@@ -64,7 +70,7 @@ export class AuthService {
       user.passwordHash,
     );
     if (!isPasswordMatching) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Incorrect password');
     }
 
     // 3. Generate and return a JWT
