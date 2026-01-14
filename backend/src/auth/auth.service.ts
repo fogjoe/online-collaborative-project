@@ -49,22 +49,25 @@ export class AuthService {
     let user: User | null = null;
 
     if (isIdentifierEmail) {
-      user = await this.userService.findOneByEmail(identifier);
+      user = await this.userService.findOneByEmailWithPassword(identifier);
       if (!user) {
         // Allow usernames that look like emails
-        user = await this.userService.findOneByUsername(identifier);
+        user = await this.userService.findOneByUsernameWithPassword(identifier);
         if (!user) {
           throw new UnauthorizedException('Email not found');
         }
       }
     } else {
-      user = await this.userService.findOneByUsername(identifier);
+      user = await this.userService.findOneByUsernameWithPassword(identifier);
       if (!user) {
         throw new UnauthorizedException('Username not found');
       }
     }
 
     // 2. Compare the provided password with the stored hash
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     const isPasswordMatching = await bcrypt.compare(
       password,
       user.passwordHash,

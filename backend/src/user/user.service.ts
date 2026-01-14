@@ -27,6 +27,22 @@ export class UserService {
     return this.userRepository.findOne({ where: { username } });
   }
 
+  findOneByEmailWithPassword(email: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.email = :email', { email })
+      .getOne();
+  }
+
+  findOneByUsernameWithPassword(username: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.username = :username', { username })
+      .getOne();
+  }
+
   async update(id: number, updateUserDto: UpdateUserDto) {
     // 1. Find the current logged-in user (User 5)
     const user = await this.userRepository.findOneBy({ id });
