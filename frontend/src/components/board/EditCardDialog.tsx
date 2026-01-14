@@ -88,7 +88,7 @@ export const EditCardDialog = ({
   const [selectedLabels, setSelectedLabels] = useState<CardType['labels']>([])
   const [dueDateInput, setDueDateInput] = useState('')
   const [assignedMembers, setAssignedMembers] = useState<CardType['assignees']>([])
-  const [assigneeSelectValue, setAssigneeSelectValue] = useState<string>()
+  const [assigneeSelectValue, setAssigneeSelectValue] = useState<string>('')
 
   const buildSnapshot = (source: CardType) => {
     const labelIds = (source.labels || []).map(label => label.id).sort((a, b) => a - b)
@@ -137,14 +137,14 @@ export const EditCardDialog = ({
       setSelectedLabels([])
       setDueDateInput('')
       setAssignedMembers([])
-      setAssigneeSelectValue(undefined)
+      setAssigneeSelectValue('')
       setCardSnapshot(null)
       return
     }
 
     hydrateFromCard(card)
     setCardSnapshot(buildSnapshot(card))
-    setAssigneeSelectValue(undefined)
+    setAssigneeSelectValue('')
   }
 
   const handleDialogClose = () => {
@@ -170,7 +170,7 @@ export const EditCardDialog = ({
       if (prev.some(u => u.id === userId)) return prev
       return [...prev, userToAdd]
     })
-    setAssigneeSelectValue(undefined)
+    setAssigneeSelectValue('')
   }
 
   const handleUnassignLocal = (userId: number) => {
@@ -353,17 +353,17 @@ export const EditCardDialog = ({
                 </div>
 
                 {/* Add Member Dropdown */}
-                <Select
-                  value={assigneeSelectValue}
-                  onOpenChange={open => {
-                    if (!open) {
-                      setAssigneeSelectValue(undefined)
-                    }
-                  }}
-                  onValueChange={val => {
-                    setAssigneeSelectValue(undefined)
-                    handleAssignLocal(Number(val))
-                  }}
+                  <Select
+                    value={assigneeSelectValue}
+                    onOpenChange={open => {
+                      if (!open) {
+                        setAssigneeSelectValue('')
+                      }
+                    }}
+                    onValueChange={val => {
+                      handleAssignLocal(Number(val))
+                      setAssigneeSelectValue('')
+                    }}
                   disabled={unassignedMembers.length === 0}
                 >
                   <SelectTrigger className="w-full h-9 text-xs bg-white border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E] transition-colors">
