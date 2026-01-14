@@ -28,6 +28,9 @@ export class Attachment {
   @Column()
   url: string;
 
+  @Column({ name: 'content_hash', type: 'varchar', length: 64, nullable: true })
+  contentHash: string | null;
+
   @ManyToOne(() => Card, (card) => card.attachments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'card_id' })
   card: Card;
