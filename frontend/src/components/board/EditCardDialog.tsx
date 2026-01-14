@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Trash2, Save, AlertTriangle, X, CalendarClock } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import {
@@ -30,10 +30,7 @@ interface EditCardDialogProps {
   card: CardType | null
   isOpen: boolean
   onClose: () => void
-  onSave: (
-    cardId: number,
-    data: { title: string; description: string; labels: CardType['labels']; dueDate: string | null }
-  ) => Promise<void>
+  onSave: (cardId: number, data: { title: string; description: string; labels: CardType['labels']; dueDate: string | null }) => Promise<void>
   onDelete: (cardId: number) => Promise<void>
 
   projectMembers: User[]
@@ -68,19 +65,7 @@ const toDateTimeLocal = (value?: string | null) => {
   return local.toISOString().slice(0, 16)
 }
 
-export const EditCardDialog = ({
-  card,
-  isOpen,
-  onClose,
-  onSave,
-  onDelete,
-  projectMembers,
-  onAssign,
-  onUnassign,
-  projectId,
-  onCardUpdate,
-  commentRefreshKey
-}: EditCardDialogProps) => {
+export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projectMembers, onAssign, onUnassign, projectId, onCardUpdate, commentRefreshKey }: EditCardDialogProps) => {
   const [cardSnapshot, setCardSnapshot] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -89,6 +74,7 @@ export const EditCardDialog = ({
   const [dueDateInput, setDueDateInput] = useState('')
   const [assignedMembers, setAssignedMembers] = useState<CardType['assignees']>([])
   const [assigneeSelectValue, setAssigneeSelectValue] = useState<string>('')
+  const dueDateInputRef = useRef<HTMLInputElement | null>(null)
 
   const buildSnapshot = (source: CardType) => {
     const labelIds = (source.labels || []).map(label => label.id).sort((a, b) => a - b)
@@ -241,7 +227,6 @@ export const EditCardDialog = ({
           <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-0 rounded-2xl border border-slate-100">
             {/* LEFT COLUMN: Main Content */}
             <div className="pt-3 pb-6 px-6 md:px-8 md:border-r border-slate-100 flex flex-col gap-5">
-
               {/* Title Input */}
               <div className="grid gap-2">
                 <Label htmlFor="title" className="text-sm font-semibold text-slate-700">
@@ -280,18 +265,12 @@ export const EditCardDialog = ({
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Labels</Label>
                 <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 flex flex-wrap gap-2 min-h-[56px]">
                   {selectedLabels.length > 0 ? (
-                    selectedLabels.map(label => (
-                      <LabelBadge key={`sidebar-${label.id}`} color={label.color} name={label.name} className="shadow-none" />
-                    ))
+                    selectedLabels.map(label => <LabelBadge key={`sidebar-${label.id}`} color={label.color} name={label.name} className="shadow-none" />)
                   ) : (
                     <span className="text-xs text-slate-400 italic">No labels selected</span>
                   )}
                 </div>
-                <LabelPopover
-                  projectId={projectId}
-                  activeLabelIds={selectedLabels.map(l => l.id)}
-                  onLabelToggle={handleLocalLabelToggle}
-                />
+                <LabelPopover projectId={projectId} activeLabelIds={selectedLabels.map(l => l.id)} onLabelToggle={handleLocalLabelToggle} />
               </div>
 
               <div className="space-y-3">
@@ -315,12 +294,23 @@ export const EditCardDialog = ({
                     <p className="text-xs text-slate-400 italic">No due date set</p>
                   )}
                 </div>
-                <Input
-                  type="datetime-local"
-                  value={dueDateInput}
-                  onChange={e => setDueDateInput(e.target.value)}
-                  className="text-sm"
-                />
+                <div className="relative">
+                  <Input ref={dueDateInputRef} type="datetime-local" step={60} value={dueDateInput} onChange={e => setDueDateInput(e.target.value)} className="text-sm pr-9" />
+                  <button
+                    type="button"
+                    aria-label="Open date picker"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    onMouseDown={event => {
+                      event.preventDefault()
+                      const input = dueDateInputRef.current
+                      if ('showPicker' in input!) {
+                        ;(input as HTMLInputElement & { showPicker?: () => void }).showPicker?.()
+                      }
+                    }}
+                  >
+                    <CalendarClock size={16} />
+                  </button>
+                </div>
                 <div className="flex justify-end">
                   <Button type="button" variant="ghost" size="sm" onClick={() => setDueDateInput('')} className="text-xs text-slate-500 hover:text-slate-700">
                     Clear date
@@ -353,17 +343,17 @@ export const EditCardDialog = ({
                 </div>
 
                 {/* Add Member Dropdown */}
-                  <Select
-                    value={assigneeSelectValue}
-                    onOpenChange={open => {
-                      if (!open) {
-                        setAssigneeSelectValue('')
-                      }
-                    }}
-                    onValueChange={val => {
-                      handleAssignLocal(Number(val))
+                <Select
+                  value={assigneeSelectValue}
+                  onOpenChange={open => {
+                    if (!open) {
                       setAssigneeSelectValue('')
-                    }}
+                    }
+                  }}
+                  onValueChange={val => {
+                    handleAssignLocal(Number(val))
+                    setAssigneeSelectValue('')
+                  }}
                   disabled={unassignedMembers.length === 0}
                 >
                   <SelectTrigger className="w-full h-9 text-xs bg-white border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E] transition-colors">
