@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -72,6 +73,12 @@ export class UserService {
       if (existingUser && existingUser.id !== id) {
         throw new ConflictException('Username is already taken');
       }
+    }
+
+    if (updateUserDto.password) {
+      const salt = await bcrypt.genSalt(10);
+      user.passwordHash = await bcrypt.hash(updateUserDto.password, salt);
+      delete (updateUserDto as { password?: string }).password;
     }
 
     // 5. Merge and Save

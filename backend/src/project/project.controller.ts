@@ -22,9 +22,12 @@ import { AddMemberDto } from './dto/add-member.dto';
 import { ensureUploadSubdirectory } from 'src/common/utils/upload.util';
 import { ActivityLog } from 'src/activity/decorators/log-activity.decorator';
 import { ActivityLoggingInterceptor } from 'src/activity/interceptors/activity-logging.interceptor';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { ProjectRole } from './enums/project-role.enum';
 
 @Controller('projects')
-@UseGuards(JwtAuthGuard) //  Only logged in users can access
+@UseGuards(JwtAuthGuard, RolesGuard) //  Only logged in users can access
 export class ProjectController {
   constructor(
     private readonly projectService: ProjectService,
@@ -77,11 +80,13 @@ export class ProjectController {
    * DELETE /api/projects/:id
    */
   @Delete(':id')
+  @Roles(ProjectRole.OWNER)
   remove(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.projectService.remove(id, req.user);
   }
 
   @Post(':id/members')
+  @Roles(ProjectRole.ADMIN, ProjectRole.OWNER)
   @UseInterceptors(ActivityLoggingInterceptor)
   @ActivityLog({
     action: 'invited_member',
@@ -114,6 +119,12 @@ export class ProjectController {
   }
 
   @Get(':id')
+  @Roles(
+    ProjectRole.VIEWER,
+    ProjectRole.MEMBER,
+    ProjectRole.ADMIN,
+    ProjectRole.OWNER,
+  )
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.projectService.findOne(id);
   }

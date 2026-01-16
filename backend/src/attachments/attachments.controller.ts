@@ -6,6 +6,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -17,6 +18,9 @@ import { extname } from 'path';
 import { ensureUploadSubdirectory } from 'src/common/utils/upload.util';
 import { AttachmentsService } from './attachments.service';
 import { ConfigService } from '@nestjs/config';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { ProjectRole } from 'src/project/enums/project-role.enum';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -31,7 +35,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 @Controller('attachments')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class AttachmentsController {
   constructor(
     private readonly attachmentsService: AttachmentsService,
@@ -39,6 +43,7 @@ export class AttachmentsController {
   ) {}
 
   @Post('card/:cardId')
+  @Roles(ProjectRole.MEMBER, ProjectRole.ADMIN, ProjectRole.OWNER)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -72,6 +77,7 @@ export class AttachmentsController {
   upload(
     @Param('cardId', ParseIntPipe) cardId: number,
     @UploadedFile() file: Express.Multer.File,
+    @Req() req,
   ) {
     if (!file) {
       throw new BadRequestException('Attachment file is required');
@@ -80,16 +86,23 @@ export class AttachmentsController {
     const backendUrl = this.configService.get<string>('SERVICE_URL');
     const fileUrl = `${backendUrl}/uploads/attachments/${file.filename}`;
 
-    return this.attachmentsService.create(cardId, file, fileUrl);
+    return this.attachmentsService.create(cardId, file, fileUrl, req.user);
   }
 
   @Get('card/:cardId')
+  @Roles(
+    ProjectRole.VIEWER,
+    ProjectRole.MEMBER,
+    ProjectRole.ADMIN,
+    ProjectRole.OWNER,
+  )
   list(@Param('cardId', ParseIntPipe) cardId: number) {
     return this.attachmentsService.findByCard(cardId);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.attachmentsService.remove(id);
+  @Roles(ProjectRole.MEMBER, ProjectRole.ADMIN, ProjectRole.OWNER)
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.attachmentsService.remove(id, req.user);
   }
 }

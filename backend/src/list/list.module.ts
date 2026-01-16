@@ -5,9 +5,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { List } from './entities/list.entity';
 import { Project } from '../project/entities/project.entity';
 import { WebsocketModule } from 'src/websocket/websocket.module';
+import { AuthorizationModule } from 'src/common/authorization/authorization.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([List, Project]), WebsocketModule],
+  imports: [
+    TypeOrmModule.forFeature([List, Project]),
+    WebsocketModule,
+    AuthorizationModule,
+  ],
   controllers: [ListController],
   providers: [ListService],
 })

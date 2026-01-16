@@ -13,16 +13,9 @@ import { CardLabelsPreview } from '@/components/board/CardLabelsPreview'
 import { ActivityDrawer } from '@/components/board/ActivityDrawer'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useAuth } from '@/context/AuthContext'
-import {
-  CardCreatedPayload,
-  CardUpdatedPayload,
-  CardMovedPayload,
-  CardDeletedPayload,
-  CommentAddedPayload,
-  MemberJoinedPayload,
-  AttachmentsUpdatedPayload
-} from '@/types/websocket'
+import { CardCreatedPayload, CardUpdatedPayload, CardMovedPayload, CardDeletedPayload, CommentAddedPayload, MemberJoinedPayload, AttachmentsUpdatedPayload } from '@/types/websocket'
 import { formatDistanceToNow } from 'date-fns'
+import type { ProjectRole } from '@/types/project'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -35,6 +28,7 @@ export interface User {
   username: string
   email: string
   avatarUrl?: string
+  role?: ProjectRole
 }
 
 export interface Label {
@@ -63,6 +57,7 @@ export interface Card {
   assignees: User[]
   labels: Label[]
   attachments: Attachment[]
+  createdBy?: User | null
 }
 
 interface DbList {
@@ -135,6 +130,7 @@ export const BoardPage = () => {
   const [cardsByListId, setCardsByListId] = useState<Record<number, Card[]>>({})
   const [members, setMembers] = useState<User[]>([])
   const [commentRefreshKeys, setCommentRefreshKeys] = useState<Record<number, number>>({})
+  const [projectOwnerId, setProjectOwnerId] = useState<number | null>(null)
 
   // UI State
   const [addingCardToListId, setAddingCardToListId] = useState<number | null>(null)
@@ -148,110 +144,130 @@ export const BoardPage = () => {
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
 
   // --- WebSocket Event Handlers ---
-  const handleWebSocketCardCreated = useCallback((payload: CardCreatedPayload) => {
-    // Skip if this is our own action (already handled optimistically)
-    if (payload.actor.id === user?.id) return
+  const handleWebSocketCardCreated = useCallback(
+    (payload: CardCreatedPayload) => {
+      // Skip if this is our own action (already handled optimistically)
+      if (payload.actor.id === user?.id) return
 
-    const newCard: Card = {
-      id: payload.card.id,
-      title: payload.card.title,
-      description: payload.card.description,
-      order: payload.card.order,
-      isCompleted: payload.card.isCompleted,
-      dueDate: payload.card.dueDate ?? null,
-      assignees: payload.card.assignees as User[],
-      labels: payload.card.labels as Label[],
-      attachments: payload.card.attachments as Attachment[]
-    }
-
-    setCardsByListId(prev => ({
-      ...prev,
-      [payload.listId]: [...(prev[payload.listId] || []), newCard].sort((a, b) => a.order - b.order)
-    }))
-
-    toast.info(`${payload.actor.username} created a new card: "${payload.card.title}"`)
-  }, [user?.id])
-
-  const handleWebSocketCardUpdated = useCallback((payload: CardUpdatedPayload) => {
-    if (payload.actor.id === user?.id) return
-
-    setCardsByListId(prev => {
-      const newMap = { ...prev }
-      for (const listId in newMap) {
-        newMap[listId] = newMap[listId].map(card => {
-          if (card.id === payload.cardId) {
-            const updated = { ...card }
-            if (payload.updates.title !== undefined) updated.title = payload.updates.title
-            if (payload.updates.description !== undefined) updated.description = payload.updates.description
-            if (payload.updates.isCompleted !== undefined) updated.isCompleted = payload.updates.isCompleted
-            if (payload.updates.labels !== undefined) updated.labels = payload.updates.labels as Label[]
-            if (payload.updates.dueDate !== undefined) {
-              updated.dueDate = (payload.updates.dueDate as string | null) ?? null
-            }
-            return updated
-          }
-          return card
-        })
-      }
-      return newMap
-    })
-
-    toast.info(`${payload.actor.username} updated a card`)
-  }, [user?.id])
-
-  const handleWebSocketCardMoved = useCallback((payload: CardMovedPayload) => {
-    if (payload.actor.id === user?.id) return
-
-    setCardsByListId(prev => {
-      const newMap = { ...prev }
-
-      // Find and remove card from source list
-      let movedCard: Card | undefined
-      for (const listId in newMap) {
-        const cardIndex = newMap[listId].findIndex(c => c.id === payload.cardId)
-        if (cardIndex !== -1) {
-          movedCard = { ...newMap[listId][cardIndex], order: payload.newOrder }
-          newMap[listId] = newMap[listId].filter(c => c.id !== payload.cardId)
-          break
+      const newCard: Card = {
+        id: payload.card.id,
+        title: payload.card.title,
+        description: payload.card.description,
+        order: payload.card.order,
+        isCompleted: payload.card.isCompleted,
+        dueDate: payload.card.dueDate ?? null,
+        assignees: payload.card.assignees as User[],
+        labels: payload.card.labels as Label[],
+        attachments: payload.card.attachments as Attachment[],
+        createdBy: {
+          id: payload.actor.id,
+          username: payload.actor.username,
+          email: ''
         }
       }
 
-      // Add to destination list
-      if (movedCard) {
-        newMap[payload.toListId] = [...(newMap[payload.toListId] || []), movedCard].sort((a, b) => a.order - b.order)
+      setCardsByListId(prev => ({
+        ...prev,
+        [payload.listId]: [...(prev[payload.listId] || []), newCard].sort((a, b) => a.order - b.order)
+      }))
+
+      toast.info(`${payload.actor.username} created a new card: "${payload.card.title}"`)
+    },
+    [user?.id]
+  )
+
+  const handleWebSocketCardUpdated = useCallback(
+    (payload: CardUpdatedPayload) => {
+      if (payload.actor.id === user?.id) return
+
+      setCardsByListId(prev => {
+        const newMap = { ...prev }
+        for (const listId in newMap) {
+          newMap[listId] = newMap[listId].map(card => {
+            if (card.id === payload.cardId) {
+              const updated = { ...card }
+              if (payload.updates.title !== undefined) updated.title = payload.updates.title
+              if (payload.updates.description !== undefined) updated.description = payload.updates.description
+              if (payload.updates.isCompleted !== undefined) updated.isCompleted = payload.updates.isCompleted
+              if (payload.updates.labels !== undefined) updated.labels = payload.updates.labels as Label[]
+              if (payload.updates.dueDate !== undefined) {
+                updated.dueDate = (payload.updates.dueDate as string | null) ?? null
+              }
+              return updated
+            }
+            return card
+          })
+        }
+        return newMap
+      })
+
+      toast.info(`${payload.actor.username} updated a card`)
+    },
+    [user?.id]
+  )
+
+  const handleWebSocketCardMoved = useCallback(
+    (payload: CardMovedPayload) => {
+      if (payload.actor.id === user?.id) return
+
+      setCardsByListId(prev => {
+        const newMap = { ...prev }
+
+        // Find and remove card from source list
+        let movedCard: Card | undefined
+        for (const listId in newMap) {
+          const cardIndex = newMap[listId].findIndex(c => c.id === payload.cardId)
+          if (cardIndex !== -1) {
+            movedCard = { ...newMap[listId][cardIndex], order: payload.newOrder }
+            newMap[listId] = newMap[listId].filter(c => c.id !== payload.cardId)
+            break
+          }
+        }
+
+        // Add to destination list
+        if (movedCard) {
+          newMap[payload.toListId] = [...(newMap[payload.toListId] || []), movedCard].sort((a, b) => a.order - b.order)
+        }
+
+        return newMap
+      })
+
+      if (payload.fromListId !== payload.toListId) {
+        toast.info(`${payload.actor.username} moved a card`)
       }
+    },
+    [user?.id]
+  )
 
-      return newMap
-    })
+  const handleWebSocketCardDeleted = useCallback(
+    (payload: CardDeletedPayload) => {
+      if (payload.actor.id === user?.id) return
 
-    if (payload.fromListId !== payload.toListId) {
-      toast.info(`${payload.actor.username} moved a card`)
-    }
-  }, [user?.id])
+      setCardsByListId(prev => {
+        const newMap = { ...prev }
+        for (const listId in newMap) {
+          newMap[listId] = newMap[listId].filter(c => c.id !== payload.cardId)
+        }
+        return newMap
+      })
 
-  const handleWebSocketCardDeleted = useCallback((payload: CardDeletedPayload) => {
-    if (payload.actor.id === user?.id) return
+      toast.info(`${payload.actor.username} deleted a card`)
+    },
+    [user?.id]
+  )
 
-    setCardsByListId(prev => {
-      const newMap = { ...prev }
-      for (const listId in newMap) {
-        newMap[listId] = newMap[listId].filter(c => c.id !== payload.cardId)
-      }
-      return newMap
-    })
+  const handleWebSocketCommentAdded = useCallback(
+    (payload: CommentAddedPayload) => {
+      setCommentRefreshKeys(prev => ({
+        ...prev,
+        [payload.cardId]: (prev[payload.cardId] ?? 0) + 1
+      }))
 
-    toast.info(`${payload.actor.username} deleted a card`)
-  }, [user?.id])
-
-  const handleWebSocketCommentAdded = useCallback((payload: CommentAddedPayload) => {
-    setCommentRefreshKeys(prev => ({
-      ...prev,
-      [payload.cardId]: (prev[payload.cardId] ?? 0) + 1
-    }))
-
-    if (payload.comment.user.id === user?.id) return
-    toast.info(`${payload.comment.user.username} added a comment`)
-  }, [user?.id])
+      if (payload.comment.user.id === user?.id) return
+      toast.info(`${payload.comment.user.username} added a comment`)
+    },
+    [user?.id]
+  )
 
   const handleWebSocketMemberJoined = useCallback((payload: MemberJoinedPayload) => {
     setMembers(prev => {
@@ -265,9 +281,7 @@ export const BoardPage = () => {
     setCardsByListId(prev => {
       const newMap: Record<number, Card[]> = {}
       for (const listId in prev) {
-        newMap[listId] = prev[listId].map(card =>
-          card.id === payload.cardId ? { ...card, attachments: payload.attachments } : card
-        )
+        newMap[listId] = prev[listId].map(card => (card.id === payload.cardId ? { ...card, attachments: payload.attachments } : card))
       }
       return newMap
     })
@@ -319,6 +333,9 @@ export const BoardPage = () => {
       if (projectRes.data?.members) {
         setMembers(projectRes.data.members)
       }
+      if (projectRes.data?.owner?.id) {
+        setProjectOwnerId(projectRes.data.owner.id)
+      }
     } catch (error) {
       console.error('Failed to fetch board', error)
       toast.error('Failed to load board data')
@@ -329,6 +346,30 @@ export const BoardPage = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData()
   }, [fetchData])
+
+  const currentUserRole = useMemo<ProjectRole | null>(() => {
+    if (!user?.id) return null
+    const membership = members.find(member => member.id === user.id)
+    if (membership) return membership.role ?? 'MEMBER'
+    if (projectOwnerId === user.id) return 'OWNER'
+    return null
+  }, [members, user, projectOwnerId])
+
+  const canManageMembers = currentUserRole === 'OWNER' || currentUserRole === 'ADMIN'
+  const canCreateCard = !!currentUserRole && currentUserRole !== 'VIEWER'
+  const canComment = !!currentUserRole && currentUserRole !== 'VIEWER'
+
+  const canEditCard = useCallback(
+    (card: Card) => {
+      if (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') return true
+      if (currentUserRole !== 'MEMBER') return false
+
+      const isOwner = card.createdBy?.id === user?.id
+      const isAssignee = card.assignees?.some(assignee => assignee.id === user?.id)
+      return isOwner || isAssignee
+    },
+    [currentUserRole, user?.id]
+  )
 
   // --- Computed Columns ---
   const boardColumns: BoardColumn[] = useMemo(() => {
@@ -383,6 +424,10 @@ export const BoardPage = () => {
     const destCards = sourceListId === destListId ? sourceCards : [...(newCardsMap[destListId] || [])]
 
     const [movedCard] = sourceCards.splice(source.index, 1)
+    if (movedCard && !canEditCard(movedCard)) {
+      toast.error('You do not have permission to move this card')
+      return
+    }
     destCards.splice(destination.index, 0, movedCard)
 
     const newOrder = calculateNewOrder(destCards, destination.index)
@@ -403,13 +448,18 @@ export const BoardPage = () => {
   const handleCreateCard = async (e: React.FormEvent, listId: number) => {
     e.preventDefault()
     if (!newCardTitle.trim()) return
+    if (!canCreateCard) {
+      toast.error('You do not have permission to create cards')
+      return
+    }
 
     try {
       const res = await cardApi.create({ title: newCardTitle, description: newCardDesc, listId })
       const createdCard: Card = {
         ...res.data,
         dueDate: res.data?.dueDate ?? null,
-        attachments: res.data?.attachments || []
+        attachments: res.data?.attachments || [],
+        createdBy: user ? { id: user.id, username: user.username, email: user.email, avatarUrl: user.avatarUrl } : null
       }
       setCardsByListId(prev => ({
         ...prev,
@@ -424,6 +474,14 @@ export const BoardPage = () => {
   }
 
   const handleToggleCardStatus = (cardId: number, currentStatus: boolean) => {
+    const targetCard = Object.values(cardsByListId)
+      .flat()
+      .find(card => card.id === cardId)
+    if (targetCard && !canEditCard(targetCard)) {
+      toast.error('You do not have permission to update this card')
+      return
+    }
+
     updateLocalCardState(cardId, c => ({ ...c, isCompleted: !currentStatus }))
     cardApi.toggleStatus(cardId).catch(() => {
       toast.error('Failed to update status')
@@ -431,10 +489,15 @@ export const BoardPage = () => {
     })
   }
 
-  const handleUpdateCard = async (
-    cardId: number,
-    data: { title: string; description: string; labels: Label[]; dueDate: string | null }
-  ) => {
+  const handleUpdateCard = async (cardId: number, data: { title: string; description: string; labels: Label[]; dueDate: string | null }) => {
+    const targetCard = Object.values(cardsByListId)
+      .flat()
+      .find(card => card.id === cardId)
+    if (targetCard && !canEditCard(targetCard)) {
+      toast.error('You do not have permission to update this card')
+      return
+    }
+
     updateLocalCardState(cardId, c => ({
       ...c,
       title: data.title,
@@ -457,6 +520,14 @@ export const BoardPage = () => {
   }
 
   const handleDeleteCard = async (cardId: number) => {
+    const targetCard = Object.values(cardsByListId)
+      .flat()
+      .find(card => card.id === cardId)
+    if (targetCard && !canEditCard(targetCard)) {
+      toast.error('You do not have permission to delete this card')
+      return
+    }
+
     deleteLocalCardState(cardId)
     try {
       await cardApi.delete(cardId)
@@ -468,6 +539,14 @@ export const BoardPage = () => {
   }
 
   const handleAssignMember = async (cardId: number, userId: number) => {
+    const targetCard = Object.values(cardsByListId)
+      .flat()
+      .find(card => card.id === cardId)
+    if (targetCard && !canEditCard(targetCard)) {
+      toast.error('You do not have permission to update this card')
+      return
+    }
+
     const userToAdd = members.find(m => m.id === userId)
     if (!userToAdd) return
 
@@ -479,6 +558,14 @@ export const BoardPage = () => {
   }
 
   const handleUnassignMember = async (cardId: number, userId: number) => {
+    const targetCard = Object.values(cardsByListId)
+      .flat()
+      .find(card => card.id === cardId)
+    if (targetCard && !canEditCard(targetCard)) {
+      toast.error('You do not have permission to update this card')
+      return
+    }
+
     updateLocalCardState(cardId, c => ({
       ...c,
       assignees: c.assignees.filter(u => u.id !== userId)
@@ -486,9 +573,14 @@ export const BoardPage = () => {
     await cardApi.unassign(cardId, userId)
   }
 
-  const handleInviteUser = async (email: string) => {
+  const handleInviteUser = async (email: string, role: ProjectRole) => {
+    if (!canManageMembers) {
+      toast.error('You do not have permission to manage members')
+      return
+    }
+
     try {
-      await projectApi.addMember(projectId, email)
+      await projectApi.addMember(projectId, email, role)
       toast.success('Invitation sent')
       // Refresh members
       const res = await projectApi.getDetailById(projectId)
@@ -523,9 +615,7 @@ export const BoardPage = () => {
                 </Avatar>
               ))}
             </div>
-            <span className="text-xs font-medium text-blue-600">
-              {boardUsers.length === 1 ? '1 viewing' : `${boardUsers.length} viewing`}
-            </span>
+            <span className="text-xs font-medium text-blue-600">{boardUsers.length === 1 ? '1 viewing' : `${boardUsers.length} viewing`}</span>
           </div>
         )}
 
@@ -545,16 +635,17 @@ export const BoardPage = () => {
 
         <div className="h-6 w-px bg-slate-300 mx-1" />
 
-        <Button onClick={() => setIsInviteModalOpen(true)} className="rounded-full h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium gap-2 shadow-sm transition-all">
+        <Button
+          onClick={() => setIsInviteModalOpen(true)}
+          className="rounded-full h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium gap-2 shadow-sm transition-all"
+          disabled={!canManageMembers}
+          title={!canManageMembers ? 'Only admins and owners can invite members' : undefined}
+        >
           <UserPlus size={14} />
           Invite
         </Button>
 
-        <Button
-          onClick={() => setIsActivityDrawerOpen(true)}
-          variant="outline"
-          className="rounded-full h-9 w-9 p-0 border-slate-200 hover:bg-slate-100"
-        >
+        <Button onClick={() => setIsActivityDrawerOpen(true)} variant="outline" className="rounded-full h-9 w-9 p-0 border-slate-200 hover:bg-slate-100">
           <Activity size={16} className="text-slate-600" />
         </Button>
       </div>
@@ -598,104 +689,108 @@ export const BoardPage = () => {
                             ${snapshot.isDraggingOver ? 'bg-slate-200/40 rounded-xl' : ''}
                           `}
                         >
-                          {column.cards.map((card, index) => (
-                            <Draggable key={card.id} draggableId={card.id.toString()} index={index}>
-                              {(provided, snapshot) => {
-                                const dueBadge = getDueInsights(card)
-                                const cardVisualState = snapshot.isDragging
-                                  ? 'shadow-2xl ring-1 ring-teal-600/20 rotate-2 scale-105 z-50 border-teal-600/20'
-                                  : dueBadge?.isOverdue
+                          {column.cards.map((card, index) => {
+                            const isEditable = canEditCard(card)
+                            return (
+                              <Draggable key={card.id} draggableId={card.id.toString()} index={index} isDragDisabled={!isEditable}>
+                                {(provided, snapshot) => {
+                                  const dueBadge = getDueInsights(card)
+                                  const cardVisualState = snapshot.isDragging
+                                    ? 'shadow-2xl ring-1 ring-teal-600/20 rotate-2 scale-105 z-50 border-teal-600/20'
+                                    : dueBadge?.isOverdue
                                     ? 'border-red-200/80 bg-red-50/70 shadow-md hover:border-red-300/80'
                                     : 'shadow-sm border-slate-200/60 hover:shadow-md hover:border-slate-300/60'
 
-                                return (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    onClick={() => {
-                                      setSelectedCard(card)
-                                      setIsEditModalOpen(true)
-                                    }}
-                                    style={{ ...provided.draggableProps.style }}
-                                    className={`
+                                  return (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      onClick={() => {
+                                        setSelectedCard(card)
+                                        setIsEditModalOpen(true)
+                                      }}
+                                      style={{ ...provided.draggableProps.style }}
+                                      className={`
                                       bg-white p-4 rounded-xl border group relative flex-shrink-0 cursor-pointer
                                       ${cardVisualState}
                                       transition-all duration-200 ease-in-out
                                     `}
-                                  >
-                                    {/* Card Content */}
-                                    <div className="flex flex-col gap-2">
-                                      <div className="flex items-start justify-between gap-2">
-                                        <h4 className={`text-slate-900 font-medium text-[15px] leading-snug ${card.isCompleted ? 'line-through text-slate-400' : ''}`}>{card.title}</h4>
-                                      </div>
-
-                                      {card.description && <p className={`text-[13px] line-clamp-2 ${card.isCompleted ? 'text-slate-300' : 'text-slate-500'}`}>{card.description}</p>}
-
-                                      {dueBadge && (
-                                        <div
-                                          className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full w-fit ${
-                                            dueBadge.isOverdue
-                                              ? 'bg-red-100 text-red-700'
-                                              : dueBadge.isDueSoon
-                                                ? 'bg-amber-100 text-amber-700'
-                                                : 'bg-slate-100 text-slate-500'
-                                          }`}
-                                        >
-                                          {dueBadge.isOverdue ? <AlertTriangle size={11} /> : <Clock size={11} />}
-                                          <span>{dueBadge.isOverdue ? 'Overdue' : dueBadge.isDueSoon ? 'Due soon' : 'Due'}</span>
-                                          <span>{dueBadge.label}</span>
-                                        </div>
-                                      )}
-
-                                      <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-50 gap-2">
-                                        {/* Avatars - Left */}
-                                        <div className="flex -space-x-2 flex-shrink-0">
-                                          {card.assignees?.slice(0, 3).map(user => (
-                                            <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
-                                              <AvatarImage src={user.avatarUrl} />
-                                              <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
-                                            </Avatar>
-                                          ))}
-                                          {card.assignees && card.assignees.length > 3 && (
-                                            <span className="h-6 w-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] font-medium text-slate-500">
-                                              +{card.assignees.length - 3}
-                                            </span>
-                                          )}
+                                    >
+                                      {/* Card Content */}
+                                      <div className="flex flex-col gap-2">
+                                        <div className="flex items-start justify-between gap-2">
+                                          <h4 className={`text-slate-900 font-medium text-[15px] leading-snug ${card.isCompleted ? 'line-through text-slate-400' : ''}`}>{card.title}</h4>
                                         </div>
 
-                                        <div className="flex-1 flex justify-center">
-                                          <CardLabelsPreview labels={card.labels} />
-                                        </div>
+                                        {card.description && <p className={`text-[13px] line-clamp-2 ${card.isCompleted ? 'text-slate-300' : 'text-slate-500'}`}>{card.description}</p>}
 
-                                        <div className="flex items-center gap-2">
-                                          {card.attachments?.length > 0 && (
-                                            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                                              <Paperclip size={12} />
-                                              {card.attachments.length}
-                                            </div>
-                                          )}
+                                        {dueBadge && (
+                                          <div
+                                            className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full w-fit ${
+                                              dueBadge.isOverdue ? 'bg-red-100 text-red-700' : dueBadge.isDueSoon ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
+                                            }`}
+                                          >
+                                            {dueBadge.isOverdue ? <AlertTriangle size={11} /> : <Clock size={11} />}
+                                            <span>{dueBadge.isOverdue ? 'Overdue' : dueBadge.isDueSoon ? 'Due soon' : 'Due'}</span>
+                                            <span>{dueBadge.label}</span>
+                                          </div>
+                                        )}
 
-                                          <button
-                                            onClick={e => {
-                                              e.stopPropagation()
-                                              handleToggleCardStatus(card.id, card.isCompleted)
-                                            }}
-                                            className={`
+                                        <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-50 gap-2">
+                                          {/* Avatars - Left */}
+                                          <div className="flex -space-x-2 flex-shrink-0">
+                                            {card.assignees?.slice(0, 3).map(user => (
+                                              <Avatar key={user.id} className="h-6 w-6 border-2 border-white ring-1 ring-slate-100">
+                                                <AvatarImage src={user.avatarUrl} />
+                                                <AvatarFallback className="text-[9px] bg-teal-50 text-teal-700 font-bold">{getInitials(user.username)}</AvatarFallback>
+                                              </Avatar>
+                                            ))}
+                                            {card.assignees && card.assignees.length > 3 && (
+                                              <span className="h-6 w-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] font-medium text-slate-500">
+                                                +{card.assignees.length - 3}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          <div className="flex-1 flex justify-center">
+                                            <CardLabelsPreview labels={card.labels} />
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                            {card.attachments?.length > 0 && (
+                                              <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                                <Paperclip size={12} />
+                                                {card.attachments.length}
+                                              </div>
+                                            )}
+
+                                            <button
+                                              onClick={e => {
+                                                e.stopPropagation()
+                                                if (!isEditable) {
+                                                  toast.error('You do not have permission to update this card')
+                                                  return
+                                                }
+                                                handleToggleCardStatus(card.id, card.isCompleted)
+                                              }}
+                                              className={`
                                               h-6 w-6 rounded-full flex items-center justify-center transition-all flex-shrink-0
                                               ${card.isCompleted ? 'bg-emerald-500 text-white shadow-sm scale-110' : 'bg-slate-100 text-slate-300 hover:bg-emerald-100 hover:text-emerald-500'}
                                             `}
-                                          >
-                                            <Check size={12} strokeWidth={3} />
-                                          </button>
+                                              disabled={!isEditable}
+                                            >
+                                              <Check size={12} strokeWidth={3} />
+                                            </button>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
-                                )
-                              }}
-                            </Draggable>
-                          ))}
+                                  )
+                                }}
+                              </Draggable>
+                            )
+                          })}
                           {provided.placeholder}
 
                           {/* Add Card Input Area */}
@@ -728,7 +823,7 @@ export const BoardPage = () => {
                                     </Button>
                                   </div>
                                 </div>
-                              ) : column.status === ListStatus.TODO ? (
+                              ) : column.status === ListStatus.TODO && canCreateCard ? (
                                 <>
                                   <button
                                     onClick={() => setAddingCardToListId(numericListId)}
@@ -752,11 +847,7 @@ export const BoardPage = () => {
         </DragDropContext>
       </div>
 
-      <ActivityDrawer
-        isOpen={isActivityDrawerOpen}
-        onClose={() => setIsActivityDrawerOpen(false)}
-        projectId={projectId}
-      />
+      <ActivityDrawer isOpen={isActivityDrawerOpen} onClose={() => setIsActivityDrawerOpen(false)} projectId={projectId} />
 
       <EditCardDialog
         card={selectedCard}
@@ -770,6 +861,8 @@ export const BoardPage = () => {
         projectId={Number(projectId)}
         onCardUpdate={fetchData}
         commentRefreshKey={selectedCard ? commentRefreshKeys[selectedCard.id] ?? 0 : undefined}
+        canEdit={selectedCard ? canEditCard(selectedCard) : false}
+        canComment={canComment}
       />
 
       <InviteMemberDialog isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} onInvite={handleInviteUser} />

@@ -22,9 +22,10 @@ interface Comment {
 interface CardCommentsProps {
   cardId: number
   refreshKey?: number
+  canComment?: boolean
 }
 
-export const CardComments = ({ cardId, refreshKey }: CardCommentsProps) => {
+export const CardComments = ({ cardId, refreshKey, canComment = true }: CardCommentsProps) => {
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -85,8 +86,9 @@ export const CardComments = ({ cardId, refreshKey }: CardCommentsProps) => {
             value={newComment}
             onChange={e => setNewComment(e.target.value)}
             className="min-h-[80px] resize-none bg-slate-50 border-slate-200 focus:bg-white transition-all"
+            disabled={!canComment}
           />
-          {newComment.trim() && (
+          {canComment && newComment.trim() && (
             <Button size="sm" onClick={handleSubmit} disabled={isSubmitting} className="bg-[#0F766E] text-white hover:bg-[#0d655e]">
               {isSubmitting ? (
                 'Sending...'

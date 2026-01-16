@@ -36,5 +36,8 @@ export class UpdateUserDto {
   @IsBoolean()
   notifyOverdueEmail?: boolean;
 
-  // Optional: Add password change logic later if needed
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  password?: string;
 }

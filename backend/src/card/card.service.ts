@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CreateCardDto } from './dto/create-card.dto';
@@ -11,6 +15,8 @@ import { AssignUserDto } from './dto/assign-user.dto';
 import { Label } from 'src/labels/entities/label.entity';
 import { ActivityService } from 'src/activity/activity.service';
 import { WebsocketService } from 'src/websocket/websocket.service';
+import { ProjectAccessService } from 'src/common/authorization/project-access.service';
+import { ProjectRole } from 'src/project/enums/project-role.enum';
 
 @Injectable()
 export class CardService {
@@ -25,6 +31,7 @@ export class CardService {
     private labelRepository: Repository<Label>,
     private readonly activityService: ActivityService,
     private readonly websocketService: WebsocketService,
+    private readonly projectAccessService: ProjectAccessService,
   ) {}
 
   async create(createCardDto: CreateCardDto, actor: User) {
@@ -54,6 +61,7 @@ export class CardService {
       dueDate: dueDate ? new Date(dueDate) : null,
       lastDueSoonReminderAt: null,
       lastOverdueNotificationAt: null,
+      createdBy: actor,
     });
 
     const savedCard = await this.cardRepository.save(newCard);
@@ -103,12 +111,14 @@ export class CardService {
     // 1. Find the card
     const card = await this.cardRepository.findOne({
       where: { id: cardId },
-      relations: ['list', 'list.project'], // Load the list relation to check current list
+      relations: ['list', 'list.project', 'createdBy', 'assignees'],
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${cardId} not found`);
     }
+
+    await this.ensureCanEditCard(card, actor);
 
     const previousList = card.list;
     let moved = false;
@@ -173,12 +183,14 @@ export class CardService {
   async toggle(id: number, actor: User) {
     const card = await this.cardRepository.findOne({
       where: { id },
-      relations: ['list', 'list.project'],
+      relations: ['list', 'list.project', 'createdBy', 'assignees'],
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${id} not found`);
     }
+
+    await this.ensureCanEditCard(card, actor);
 
     card.isCompleted = !card.isCompleted;
     const savedCard = await this.cardRepository.save(card);
@@ -203,12 +215,14 @@ export class CardService {
     const { labelIds, dueDate, ...partialData } = updateCardDto;
     const card = await this.cardRepository.findOne({
       where: { id },
-      relations: ['labels', 'list', 'list.project'],
+      relations: ['labels', 'list', 'list.project', 'createdBy', 'assignees'],
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${id} not found`);
     }
+
+    await this.ensureCanEditCard(card, actor);
 
     const oldValue = {
       title: card.title,
@@ -277,12 +291,14 @@ export class CardService {
     // First fetch the card with relations to get projectId
     const card = await this.cardRepository.findOne({
       where: { id },
-      relations: ['list', 'list.project'],
+      relations: ['list', 'list.project', 'createdBy', 'assignees'],
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${id} not found`);
     }
+
+    await this.ensureCanEditCard(card, actor);
 
     const projectId = card.list.project.id;
     const listId = card.list.id;
@@ -304,16 +320,18 @@ export class CardService {
   }
 
   // Assign a User to a Card
-  async assignMember(cardId: number, dto: AssignUserDto) {
+  async assignMember(cardId: number, dto: AssignUserDto, actor: User) {
     const { userId } = dto;
 
     // 1. Find Card with existing assignees
     const card = await this.cardRepository.findOne({
       where: { id: cardId },
-      relations: ['assignees'],
+      relations: ['assignees', 'list', 'list.project', 'createdBy'],
     });
 
     if (!card) throw new NotFoundException('Card not found');
+
+    await this.ensureCanEditCard(card, actor);
 
     // 2. Find User
     const user = await this.userRepository.findOneBy({ id: userId });
@@ -331,13 +349,15 @@ export class CardService {
   }
 
   // Unassign a User from a Card
-  async removeMember(cardId: number, userId: number) {
+  async removeMember(cardId: number, userId: number, actor: User) {
     const card = await this.cardRepository.findOne({
       where: { id: cardId },
-      relations: ['assignees'],
+      relations: ['assignees', 'list', 'list.project', 'createdBy'],
     });
 
     if (!card) throw new NotFoundException('Card not found');
+
+    await this.ensureCanEditCard(card, actor);
 
     // Filter out the user
     card.assignees = card.assignees.filter((u) => u.id !== userId);
@@ -351,6 +371,7 @@ export class CardService {
       relations: [
         'labels',
         'assignees',
+        'createdBy',
         'comments',
         'comments.user',
         'attachments',
@@ -364,15 +385,24 @@ export class CardService {
     return card;
   }
 
-  async toggleLabel(cardId: number, labelId: number) {
+  async toggleLabel(cardId: number, labelId: number, actor: User) {
     const card = await this.cardRepository.findOne({
       where: { id: cardId },
-      relations: ['labels', 'assignees', 'comments'],
+      relations: [
+        'labels',
+        'assignees',
+        'comments',
+        'list',
+        'list.project',
+        'createdBy',
+      ],
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${cardId} not found`);
     }
+
+    await this.ensureCanEditCard(card, actor);
 
     const labelIndex = card.labels.findIndex((l) => l.id === labelId);
 
@@ -385,5 +415,28 @@ export class CardService {
     }
 
     return this.cardRepository.save(card);
+  }
+
+  private async ensureCanEditCard(card: Card, actor: User) {
+    const projectId = card.list.project.id;
+    const role = await this.projectAccessService.getUserRole(
+      projectId,
+      actor.id,
+    );
+
+    if (role === ProjectRole.OWNER || role === ProjectRole.ADMIN) {
+      return;
+    }
+
+    if (role === ProjectRole.MEMBER) {
+      const isOwner = card.createdBy?.id === actor.id;
+      const isAssignee = card.assignees?.some((u) => u.id === actor.id);
+
+      if (isOwner || isAssignee) {
+        return;
+      }
+    }
+
+    throw new ForbiddenException('You do not have access to modify this card');
   }
 }

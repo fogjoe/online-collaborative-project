@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Project } from '../../project/entities/project.entity';
 import { Card } from 'src/card/entities/card.entity';
+import { ProjectMember } from 'src/project/entities/project-member.entity';
 
 @Entity({ name: 'users' })
 export class User {
@@ -35,8 +36,8 @@ export class User {
   @OneToMany(() => Project, (project) => project.owner)
   projects: Project[];
 
-  @ManyToMany(() => Project, (project) => project.members)
-  memberProjects: Project[];
+  @OneToMany(() => ProjectMember, (membership) => membership.user)
+  projectMemberships: ProjectMember[];
 
   // New: Cards assigned to me
   @ManyToMany(() => Card, (card) => card.assignees)

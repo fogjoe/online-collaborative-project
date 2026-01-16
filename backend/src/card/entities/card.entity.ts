@@ -60,6 +60,10 @@ export class Card {
   })
   assignees: User[];
 
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'created_by' })
+  createdBy: User | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

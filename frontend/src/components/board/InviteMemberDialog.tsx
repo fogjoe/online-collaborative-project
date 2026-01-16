@@ -4,16 +4,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { ProjectRole } from '@/types/project'
 
 interface InviteMemberDialogProps {
   isOpen: boolean
   onClose: () => void
-  onInvite: (email: string) => Promise<void>
+  onInvite: (email: string, role: ProjectRole) => Promise<void>
 }
 
 export const InviteMemberDialog = ({ isOpen, onClose, onInvite }: InviteMemberDialogProps) => {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [role, setRole] = useState<ProjectRole>('MEMBER')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,7 +24,7 @@ export const InviteMemberDialog = ({ isOpen, onClose, onInvite }: InviteMemberDi
 
     setIsLoading(true)
     try {
-      await onInvite(email)
+      await onInvite(email, role)
       setEmail('') // Clear input on success
       onClose()
     } finally {
@@ -47,6 +50,19 @@ export const InviteMemberDialog = ({ isOpen, onClose, onInvite }: InviteMemberDi
               <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input id="email" type="email" placeholder="colleague@example.com" className="pl-9" value={email} onChange={e => setEmail(e.target.value)} autoFocus />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="role">Role</Label>
+            <Select value={role} onValueChange={value => setRole(value as ProjectRole)}>
+              <SelectTrigger id="role">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ADMIN">Admin</SelectItem>
+                <SelectItem value="MEMBER">Member</SelectItem>
+                <SelectItem value="VIEWER">Viewer</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <DialogFooter>

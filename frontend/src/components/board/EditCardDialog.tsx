@@ -40,6 +40,8 @@ interface EditCardDialogProps {
   projectId: number
   onCardUpdate: () => Promise<void>
   commentRefreshKey?: number
+  canEdit?: boolean
+  canComment?: boolean
 }
 
 type CardLabel = CardType['labels'][number]
@@ -65,7 +67,21 @@ const toDateTimeLocal = (value?: string | null) => {
   return local.toISOString().slice(0, 16)
 }
 
-export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projectMembers, onAssign, onUnassign, projectId, onCardUpdate, commentRefreshKey }: EditCardDialogProps) => {
+export const EditCardDialog = ({
+  card,
+  isOpen,
+  onClose,
+  onSave,
+  onDelete,
+  projectMembers,
+  onAssign,
+  onUnassign,
+  projectId,
+  onCardUpdate,
+  commentRefreshKey,
+  canEdit = true,
+  canComment = true
+}: EditCardDialogProps) => {
   const [cardSnapshot, setCardSnapshot] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -169,6 +185,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
   const isOverdue = !!card && dueDateValue ? isPast(dueDateValue) && !card.isCompleted : false
   const isDueSoon = !!card && dueDateValue ? !isOverdue && dueDateValue.getTime() - Date.now() <= DAY_IN_MS : false
   const dueDistance = dueDateValue ? formatDistanceToNow(dueDateValue, { addSuffix: true }) : ''
+  const isReadOnly = !canEdit
 
   const applyAssigneeChanges = async () => {
     if (!card) return
@@ -238,6 +255,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                   onChange={e => setTitle(e.target.value)}
                   className="font-medium text-base h-11 border-slate-200 focus-visible:ring-[#0F766E]"
                   placeholder="Enter title..."
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -252,10 +270,11 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                   onChange={e => setDescription(e.target.value)}
                   className="min-h-[200px] resize-none text-slate-600 border-slate-200 focus-visible:ring-[#0F766E] text-sm leading-relaxed"
                   placeholder="Add more details about this task..."
+                  disabled={isReadOnly}
                 />
               </div>
 
-              <CardAttachments cardId={card.id} initialAttachments={card.attachments} onRefreshCard={onCardUpdate} />
+              <CardAttachments cardId={card.id} initialAttachments={card.attachments} onRefreshCard={onCardUpdate} readOnly={isReadOnly} />
             </div>
 
             {/* RIGHT COLUMN: Sidebar (Metadata & Actions) */}
@@ -270,7 +289,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                     <span className="text-xs text-slate-400 italic">No labels selected</span>
                   )}
                 </div>
-                <LabelPopover projectId={projectId} activeLabelIds={selectedLabels.map(l => l.id)} onLabelToggle={handleLocalLabelToggle} />
+                <LabelPopover projectId={projectId} activeLabelIds={selectedLabels.map(l => l.id)} onLabelToggle={handleLocalLabelToggle} disabled={isReadOnly} />
               </div>
 
               <div className="space-y-3">
@@ -295,12 +314,13 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                   )}
                 </div>
                 <div className="relative">
-                  <Input ref={dueDateInputRef} type="datetime-local" step={60} value={dueDateInput} onChange={e => setDueDateInput(e.target.value)} className="text-sm pr-9" />
+                  <Input ref={dueDateInputRef} type="datetime-local" step={60} value={dueDateInput} onChange={e => setDueDateInput(e.target.value)} className="text-sm pr-9" disabled={isReadOnly} />
                   <button
                     type="button"
                     aria-label="Open date picker"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     onMouseDown={event => {
+                      if (isReadOnly) return
                       event.preventDefault()
                       const input = dueDateInputRef.current
                       if ('showPicker' in input!) {
@@ -312,7 +332,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                   </button>
                 </div>
                 <div className="flex justify-end">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setDueDateInput('')} className="text-xs text-slate-500 hover:text-slate-700">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setDueDateInput('')} className="text-xs text-slate-500 hover:text-slate-700" disabled={isReadOnly}>
                     Clear date
                   </Button>
                 </div>
@@ -335,9 +355,11 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                         </Avatar>
                         <span className="text-xs font-medium text-slate-700 truncate max-w-[110px]">{user.username}</span>
                       </div>
-                      <button onClick={() => handleUnassignLocal(user.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1" title="Remove member">
-                        <X size={14} />
-                      </button>
+                      {!isReadOnly && (
+                        <button onClick={() => handleUnassignLocal(user.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1" title="Remove member">
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -354,7 +376,7 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
                     handleAssignLocal(Number(val))
                     setAssigneeSelectValue('')
                   }}
-                  disabled={unassignedMembers.length === 0}
+                  disabled={isReadOnly || unassignedMembers.length === 0}
                 >
                   <SelectTrigger className="w-full h-9 text-xs bg-white border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E] transition-colors">
                     <SelectValue placeholder={unassignedMembers.length !== 0 ? '+ Add Member' : 'All members added'} />
@@ -378,58 +400,62 @@ export const EditCardDialog = ({ card, isOpen, onClose, onSave, onDelete, projec
           </div>
 
           <div className="pb-2">
-            <CardComments cardId={card.id} refreshKey={commentRefreshKey} />
+            <CardComments cardId={card.id} refreshKey={commentRefreshKey} canComment={canComment} />
           </div>
         </div>
 
         {/* Footer Actions */}
         <DialogFooter className="p-6 pt-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between sm:justify-between w-full">
           {/* Delete Button (Left) */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 transition-colors h-9 text-sm">
-                <Trash2 size={14} className="mr-2" />
-                Delete Card
-              </Button>
-            </AlertDialogTrigger>
+          {!isReadOnly && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 transition-colors h-9 text-sm">
+                  <Trash2 size={14} className="mr-2" />
+                  Delete Card
+                </Button>
+              </AlertDialogTrigger>
 
-            <AlertDialogContent className="bg-white shadow-xl border-0 rounded-xl">
-              <AlertDialogHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-red-100 rounded-full">
-                    <AlertTriangle className="h-5 w-5 text-red-600" />
+              <AlertDialogContent className="bg-white shadow-xl border-0 rounded-xl">
+                <AlertDialogHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-red-100 rounded-full">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                    </div>
+                    <AlertDialogTitle className="text-lg font-bold text-slate-900">Delete this card?</AlertDialogTitle>
                   </div>
-                  <AlertDialogTitle className="text-lg font-bold text-slate-900">Delete this card?</AlertDialogTitle>
-                </div>
-                <AlertDialogDescription className="text-slate-500 text-sm leading-relaxed ml-11">
-                  This action cannot be undone. The card
-                  <span className="font-semibold text-slate-900 mx-1">"{card.title}"</span>
-                  will be permanently removed from the board.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="mt-4">
-                <AlertDialogCancel className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-sm">
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <AlertDialogDescription className="text-slate-500 text-sm leading-relaxed ml-11">
+                    This action cannot be undone. The card
+                    <span className="font-semibold text-slate-900 mx-1">"{card.title}"</span>
+                    will be permanently removed from the board.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="mt-4">
+                  <AlertDialogCancel className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-sm">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
 
           {/* Save Actions (Right) */}
           <div className="flex gap-3">
             <Button variant="outline" onClick={handleDialogClose} disabled={isLoading} className="h-9 text-sm border-slate-200 text-slate-700 hover:bg-slate-100">
-              Cancel
+              Close
             </Button>
-            <Button onClick={handleSave} disabled={isLoading || !title.trim()} className="h-9 text-sm bg-[#0F766E] hover:bg-[#0d655e] text-white shadow-sm px-5">
-              {isLoading ? (
-                'Saving...'
-              ) : (
-                <>
-                  <Save size={14} className="mr-2" /> Save Changes
-                </>
-              )}
-            </Button>
+            {!isReadOnly && (
+              <Button onClick={handleSave} disabled={isLoading || !title.trim()} className="h-9 text-sm bg-[#0F766E] hover:bg-[#0d655e] text-white shadow-sm px-5">
+                {isLoading ? (
+                  'Saving...'
+                ) : (
+                  <>
+                    <Save size={14} className="mr-2" /> Save Changes
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

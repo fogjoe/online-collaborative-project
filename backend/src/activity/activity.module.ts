@@ -4,9 +4,10 @@ import { Activity } from './entities/activity.entity';
 import { ActivityService } from './activity.service';
 import { ActivityController } from './activity.controller';
 import { ActivityLoggingInterceptor } from './interceptors/activity-logging.interceptor';
+import { AuthorizationModule } from 'src/common/authorization/authorization.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Activity])],
+  imports: [TypeOrmModule.forFeature([Activity]), AuthorizationModule],
   controllers: [ActivityController],
   providers: [ActivityService, ActivityLoggingInterceptor],
   exports: [ActivityService, ActivityLoggingInterceptor],

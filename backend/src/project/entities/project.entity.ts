@@ -6,12 +6,11 @@ import {
   JoinColumn,
   CreateDateColumn,
   OneToMany,
-  ManyToMany,
-  JoinTable,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity'; // Ensure the path is correct
 import { List } from 'src/list/entities/list.entity';
 import { Label } from 'src/labels/entities/label.entity';
+import { ProjectMember } from './project-member.entity';
 
 @Entity('projects')
 export class Project {
@@ -33,13 +32,8 @@ export class Project {
   @JoinColumn({ name: 'owner_id' })
   owner: User;
 
-  @ManyToMany(() => User, (user) => user.memberProjects)
-  @JoinTable({
-    name: 'project_members', // Name of the join table in DB
-    joinColumn: { name: 'project_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
-  })
-  members: User[];
+  @OneToMany(() => ProjectMember, (member) => member.project)
+  projectMembers: ProjectMember[];
 
   @OneToMany(() => List, (list) => list.project)
   lists: List[];

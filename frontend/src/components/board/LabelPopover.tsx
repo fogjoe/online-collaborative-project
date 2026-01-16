@@ -28,9 +28,10 @@ interface LabelPopoverProps {
   projectId: number
   activeLabelIds: number[] // IDs of labels currently on this card
   onLabelToggle: (label: Label, willActivate: boolean) => void
+  disabled?: boolean
 }
 
-export const LabelPopover = ({ projectId, activeLabelIds, onLabelToggle }: LabelPopoverProps) => {
+export const LabelPopover = ({ projectId, activeLabelIds, onLabelToggle, disabled = false }: LabelPopoverProps) => {
   const [labels, setLabels] = useState<Label[]>([])
   const [search, setSearch] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -79,6 +80,7 @@ export const LabelPopover = ({ projectId, activeLabelIds, onLabelToggle }: Label
         <Button
           variant="outline"
           size="sm"
+          disabled={disabled}
           className="w-full h-9 justify-between text-xs font-semibold tracking-wide text-slate-600 border-dashed border-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]"
         >
           <span className="flex items-center gap-2">

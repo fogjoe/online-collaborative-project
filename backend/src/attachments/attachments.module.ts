@@ -5,9 +5,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Attachment } from './entities/attachment.entity';
 import { Card } from 'src/card/entities/card.entity';
 import { WebsocketModule } from 'src/websocket/websocket.module';
+import { AuthorizationModule } from 'src/common/authorization/authorization.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Attachment, Card]), WebsocketModule],
+  imports: [
+    TypeOrmModule.forFeature([Attachment, Card]),
+    WebsocketModule,
+    AuthorizationModule,
+  ],
   controllers: [AttachmentsController],
   providers: [AttachmentsService],
 })

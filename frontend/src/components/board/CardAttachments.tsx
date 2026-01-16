@@ -10,6 +10,7 @@ interface CardAttachmentsProps {
   cardId: number
   initialAttachments?: CardType['attachments']
   onRefreshCard?: () => Promise<void>
+  readOnly?: boolean
 }
 
 export type AttachmentItem = CardType['attachments'][number]
@@ -35,7 +36,7 @@ const getIconForMime = (mime: string) => {
   return <FileText size={16} className="text-slate-400" />
 }
 
-export const CardAttachments = ({ cardId, initialAttachments = [], onRefreshCard }: CardAttachmentsProps) => {
+export const CardAttachments = ({ cardId, initialAttachments = [], onRefreshCard, readOnly = false }: CardAttachmentsProps) => {
   const [attachments, setAttachments] = useState<AttachmentItem[]>(initialAttachments)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -118,17 +119,19 @@ export const CardAttachments = ({ cardId, initialAttachments = [], onRefreshCard
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} className="hidden" multiple onChange={handleFileChange} />
-          <Button type="button" variant="outline" size="sm" className="h-8 text-xs text-slate-700" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-            {isUploading ? (
-              <>
-                <Loader2 size={14} className="mr-2 animate-spin" /> Uploading...
-              </>
-            ) : (
-              <>
-                <UploadCloud size={14} className="mr-2" /> Upload
-              </>
-            )}
-          </Button>
+          {!readOnly && (
+            <Button type="button" variant="outline" size="sm" className="h-8 text-xs text-slate-700" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+              {isUploading ? (
+                <>
+                  <Loader2 size={14} className="mr-2 animate-spin" /> Uploading...
+                </>
+              ) : (
+                <>
+                  <UploadCloud size={14} className="mr-2" /> Upload
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -150,13 +153,14 @@ export const CardAttachments = ({ cardId, initialAttachments = [], onRefreshCard
                 </div>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-500" onClick={() => handleDelete(attachment.id)} disabled={deletingId === attachment.id}>
-              {deletingId === attachment.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-            </Button>
+            {!readOnly && (
+              <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-500" onClick={() => handleDelete(attachment.id)} disabled={deletingId === attachment.id}>
+                {deletingId === attachment.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              </Button>
+            )}
           </div>
         ))}
       </div>
     </div>
   )
 }
-

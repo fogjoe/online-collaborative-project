@@ -144,7 +144,7 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Verify user has access to project
     const project = await this.projectRepository.findOne({
       where: { id: projectId },
-      relations: ['owner', 'members'],
+      relations: ['owner', 'projectMembers'],
     });
 
     if (!project) {
@@ -153,7 +153,7 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const hasAccess =
       project.owner.id === clientUser.userId ||
-      project.members.some((m) => m.id === clientUser.userId);
+      project.projectMembers.some((m) => m.userId === clientUser.userId);
 
     if (!hasAccess) {
       return { success: false, message: 'Access denied' };

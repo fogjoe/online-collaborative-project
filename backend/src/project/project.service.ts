@@ -9,12 +9,16 @@ import { ListStatus } from 'src/list/enums/list-status.enum';
 import { AddMemberDto } from './dto/add-member.dto';
 import { NotificationService } from 'src/notification/notification.service';
 import { WebsocketService } from 'src/websocket/websocket.service';
+import { ProjectMember } from './entities/project-member.entity';
+import { ProjectRole } from './enums/project-role.enum';
 
 @Injectable()
 export class ProjectService {
   constructor(
     @InjectRepository(Project)
     private projectRepository: Repository<Project>,
+    @InjectRepository(ProjectMember)
+    private projectMemberRepository: Repository<ProjectMember>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private dataSource: DataSource,
@@ -66,16 +70,55 @@ export class ProjectService {
       await manager.save(List, defaultLists);
 
       // 5. Return the project
+      const ownerMembership = manager.create(ProjectMember, {
+        projectId: savedProject.id,
+        userId: user.id,
+        project: savedProject,
+        user,
+        role: ProjectRole.OWNER,
+      });
+      await manager.save(ownerMembership);
+
       return savedProject;
     });
   }
 
   // Find all projects of the current user
   async findAllByUser(user: User) {
-    return this.projectRepository.find({
-      where: [{ owner: { id: user.id } }, { members: { id: user.id } }],
-      relations: ['owner'],
-      order: { createdAt: 'DESC' },
+    const projects = await this.projectRepository
+      .createQueryBuilder('project')
+      .leftJoinAndSelect('project.owner', 'owner')
+      .leftJoinAndSelect('project.projectMembers', 'projectMember')
+      .leftJoinAndSelect('projectMember.user', 'memberUser')
+      .where('owner.id = :userId', { userId: user.id })
+      .orWhere('projectMember.userId = :userId', { userId: user.id })
+      .orderBy('project.createdAt', 'DESC')
+      .getMany();
+
+    return projects.map((project) => {
+      const members =
+        project.projectMembers?.map((member) => ({
+          ...member.user,
+          role: member.role,
+        })) ?? [];
+
+      if (
+        project.owner &&
+        !members.some((member) => member.id === project.owner.id)
+      ) {
+        members.push({ ...project.owner, role: ProjectRole.OWNER });
+      }
+
+      const currentMembership =
+        project.projectMembers?.find((m) => m.userId === user.id) ?? null;
+
+      return {
+        ...project,
+        members,
+        currentUserRole:
+          currentMembership?.role ??
+          (project.owner?.id === user.id ? ProjectRole.OWNER : null),
+      };
     });
   }
 
@@ -98,12 +141,12 @@ export class ProjectService {
 
   // Add Member by Email
   async addMember(projectId: number, addMemberDto: AddMemberDto) {
-    const { email } = addMemberDto;
+    const { email, role } = addMemberDto;
 
     // 1. Find the Project (and load existing members)
     const project = await this.projectRepository.findOne({
       where: { id: projectId },
-      relations: ['members'], // Important!
+      relations: ['projectMembers', 'projectMembers.user'],
     });
 
     if (!project) {
@@ -118,8 +161,8 @@ export class ProjectService {
     }
 
     // 3. Check if already a member
-    const isAlreadyMember = project.members.some(
-      (member) => member.id === userToAdd.id,
+    const isAlreadyMember = project.projectMembers?.some(
+      (member) => member.userId === userToAdd.id,
     );
 
     if (isAlreadyMember) {
@@ -128,8 +171,14 @@ export class ProjectService {
     }
 
     // 4. Add User and Save
-    project.members.push(userToAdd);
-    await this.projectRepository.save(project);
+    const membership = this.projectMemberRepository.create({
+      projectId: project.id,
+      userId: userToAdd.id,
+      project,
+      user: userToAdd,
+      role: role ?? ProjectRole.MEMBER,
+    });
+    await this.projectMemberRepository.save(membership);
 
     await this.notificationsService.create(
       userToAdd,
@@ -145,22 +194,42 @@ export class ProjectService {
         username: userToAdd.username,
         email: userToAdd.email,
         avatarUrl: userToAdd.avatarUrl,
+        role: membership.role,
       },
     });
 
-    return { message: 'Member added successfully', member: userToAdd };
+    return {
+      message: 'Member added successfully',
+      member: { ...userToAdd, role: membership.role },
+    };
   }
 
   async findOne(id: number) {
     const project = await this.projectRepository.findOne({
       where: { id },
-      relations: ['members'],
+      relations: ['owner', 'projectMembers', 'projectMembers.user'],
     });
 
     if (!project) {
       throw new NotFoundException(`Project #${id} not found`);
     }
 
-    return project;
+    const members =
+      project.projectMembers?.map((member) => ({
+        ...member.user,
+        role: member.role,
+      })) ?? [];
+
+    if (
+      project.owner &&
+      !members.some((member) => member.id === project.owner.id)
+    ) {
+      members.push({ ...project.owner, role: ProjectRole.OWNER });
+    }
+
+    return {
+      ...project,
+      members,
+    };
   }
 }

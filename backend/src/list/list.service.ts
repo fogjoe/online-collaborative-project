@@ -68,6 +68,7 @@ export class ListService {
       .leftJoin('list.project', 'project')
       .leftJoinAndSelect('list.cards', 'card')
       .leftJoinAndSelect('card.assignees', 'assignee')
+      .leftJoinAndSelect('card.createdBy', 'createdBy')
       .leftJoinAndSelect('card.labels', 'label')
       .leftJoinAndSelect('card.attachments', 'attachment')
       .where('project.id = :projectId', { projectId })

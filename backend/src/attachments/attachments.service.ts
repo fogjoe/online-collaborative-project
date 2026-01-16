@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Card } from 'src/card/entities/card.entity';
 import { Repository } from 'typeorm';
@@ -10,6 +14,9 @@ import { Buffer } from 'buffer';
 import { WebsocketService } from 'src/websocket/websocket.service';
 import { AttachmentPayload } from 'src/websocket/websocket.types';
 import { createHash } from 'crypto';
+import { ProjectAccessService } from 'src/common/authorization/project-access.service';
+import { User } from 'src/user/entities/user.entity';
+import { ProjectRole } from 'src/project/enums/project-role.enum';
 
 @Injectable()
 export class AttachmentsService {
@@ -19,17 +26,25 @@ export class AttachmentsService {
     @InjectRepository(Card)
     private readonly cardRepository: Repository<Card>,
     private readonly websocketService: WebsocketService,
+    private readonly projectAccessService: ProjectAccessService,
   ) {}
 
-  async create(cardId: number, file: Express.Multer.File, fileUrl: string) {
+  async create(
+    cardId: number,
+    file: Express.Multer.File,
+    fileUrl: string,
+    actor: User,
+  ) {
     const card = await this.cardRepository.findOne({
       where: { id: cardId },
-      relations: ['list', 'list.project'],
+      relations: ['list', 'list.project', 'createdBy', 'assignees'],
     });
 
     if (!card) {
       throw new NotFoundException(`Card with ID ${cardId} not found`);
     }
+
+    await this.ensureCanEditCard(card, actor);
 
     const filePath = this.getAttachmentFilePath(file.filename);
     const contentHash = await this.computeFileHash(filePath);
@@ -129,15 +144,23 @@ export class AttachmentsService {
     return attachments.map((attachment) => this.formatAttachment(attachment));
   }
 
-  async remove(id: number) {
+  async remove(id: number, actor: User) {
     const attachment = await this.attachmentRepository.findOne({
       where: { id },
-      relations: ['card', 'card.list', 'card.list.project'],
+      relations: [
+        'card',
+        'card.list',
+        'card.list.project',
+        'card.createdBy',
+        'card.assignees',
+      ],
     });
 
     if (!attachment) {
       throw new NotFoundException(`Attachment #${id} not found`);
     }
+
+    await this.ensureCanEditCard(attachment.card, actor);
 
     await this.attachmentRepository.remove(attachment);
     await this.removeFileIfOrphaned(attachment.fileName);
@@ -157,6 +180,31 @@ export class AttachmentsService {
     if (!exists) {
       throw new NotFoundException(`Card with ID ${cardId} not found`);
     }
+  }
+
+  private async ensureCanEditCard(card: Card, actor: User) {
+    const projectId = card.list.project.id;
+    const role = await this.projectAccessService.getUserRole(
+      projectId,
+      actor.id,
+    );
+
+    if (role === ProjectRole.OWNER || role === ProjectRole.ADMIN) {
+      return;
+    }
+
+    if (role === ProjectRole.MEMBER) {
+      const isOwner = card.createdBy?.id === actor.id;
+      const isAssignee = card.assignees?.some((u) => u.id === actor.id);
+
+      if (isOwner || isAssignee) {
+        return;
+      }
+    }
+
+    throw new ForbiddenException(
+      'You do not have access to modify attachments on this card',
+    );
   }
 
   private decodeFileName(name?: string): string {

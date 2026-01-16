@@ -6,18 +6,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { CreateProjectDialog } from './Dashboard/CreateProjectDialog'
-
-// Define Types
-interface Project {
-  id: number
-  name: string
-  description: string
-  createdAt: string
-  avatarUrl?: string
-}
+import type { ProjectSummary } from '@/types/project'
 
 export const DashboardPage = () => {
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // If null, the dialog is closed. If a number, the dialog is open.
@@ -113,7 +105,7 @@ export const DashboardPage = () => {
 
 // --- Sub-Component: The Project Card ---
 // This isolates the complex card layout from the main logic
-const ProjectCard = ({ project, index, onDelete }: { project: Project; index: number; onDelete: (id: number) => void }) => {
+const ProjectCard = ({ project, index, onDelete }: { project: ProjectSummary; index: number; onDelete: (id: number) => void }) => {
   // Generate deterministic random avatars based on project ID
   // Logic: Use the uploaded URL if it exists, otherwise fallback to random avatar
   // Note: We use 'project.id' to generate a consistent random avatar for fallback
@@ -159,21 +151,23 @@ const ProjectCard = ({ project, index, onDelete }: { project: Project; index: nu
         </div>
       </Link>
 
-      <button
-        onClick={e => {
-          e.preventDefault() // Prevent clicking the link
-          e.stopPropagation()
-          onDelete(project.id)
-        }}
-        className="absolute top-4 right-4 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
-        title="Delete Project"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 6h18" />
-          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-        </svg>
-      </button>
+      {project.currentUserRole === 'OWNER' && (
+        <button
+          onClick={e => {
+            e.preventDefault() // Prevent clicking the link
+            e.stopPropagation()
+            onDelete(project.id)
+          }}
+          className="absolute top-4 right-4 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
+          title="Delete Project"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }

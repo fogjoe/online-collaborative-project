@@ -88,7 +88,7 @@ export const projectApi = {
   create: (data: { name: string; description?: string }) => apiClient.post(API.projects, data),
   delete: (id: number) => apiClient.delete(API.deleteProject(id)),
   getDetailById: (id: number) => apiClient.get(API.projectDetails(id)),
-  addMember: (projectId: number, email: string) => apiClient.post(API.addMember(projectId), { email })
+  addMember: (projectId: number, email: string, role?: string) => apiClient.post(API.addMember(projectId), { email, role })
 }
 
 export const listApi = {
