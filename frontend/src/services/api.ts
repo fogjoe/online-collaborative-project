@@ -1,5 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosError, AxiosResponse } from 'axios'
 import type { LoginDto, RegisterDto } from '@/types/auth'
+import type { SearchQueryParams, SearchResponse } from '@/types/search'
 import API from '@/common/api'
 import { toast } from 'sonner'
 import { AttachmentItem } from '@/components/board/CardAttachments'
@@ -168,6 +169,13 @@ export const activityApi = {
   list: (projectId: number, cursor?: string, limit = 25) =>
     apiClient.get(API.projectActivity(projectId), {
       params: { cursor, limit }
+    })
+}
+
+export const searchApi = {
+  search: (params: SearchQueryParams) =>
+    apiClient.get<ApiResponse<SearchResponse>>(API.search, {
+      params
     })
 }
 

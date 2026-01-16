@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { CreateProjectDialog } from './Dashboard/CreateProjectDialog'
 import type { ProjectSummary } from '@/types/project'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 export const DashboardPage = () => {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
@@ -63,6 +64,10 @@ export const DashboardPage = () => {
         <div className="flex items-center justify-between mb-10">
           <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Your Project Spaces</h1>
           <CreateProjectDialog onProjectCreated={fetchProjects} />
+        </div>
+
+        <div className="mb-8">
+          <GlobalSearch />
         </div>
 
         {/* 2. Content Area */}

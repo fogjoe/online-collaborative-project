@@ -22,7 +22,8 @@ const API = {
   toggleCardLabel: (cardId: number, labelId: number) => `/cards/${cardId}/labels/${labelId}`,
   cardAttachments: (cardId: number) => `/attachments/card/${cardId}`,
   deleteAttachment: (attachmentId: number) => `/attachments/${attachmentId}`,
-  projectActivity: (projectId: number) => `/projects/${projectId}/activity`
+  projectActivity: (projectId: number) => `/projects/${projectId}/activity`,
+  search: '/search'
 }
 
 export default API

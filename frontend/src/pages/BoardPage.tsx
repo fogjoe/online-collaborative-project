@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { EditCardDialog } from '@/components/board/EditCardDialog'
@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext'
 import { CardCreatedPayload, CardUpdatedPayload, CardMovedPayload, CardDeletedPayload, CommentAddedPayload, MemberJoinedPayload, AttachmentsUpdatedPayload } from '@/types/websocket'
 import { formatDistanceToNow } from 'date-fns'
 import type { ProjectRole } from '@/types/project'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 enum ListStatus {
   TODO = 'TODO',
@@ -124,6 +125,7 @@ export const BoardPage = () => {
   const { id } = useParams<{ id: string }>()
   const projectId = Number(id)
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   // --- State ---
   const [dbLists, setDbLists] = useState<DbList[]>([])
@@ -142,6 +144,8 @@ export const BoardPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
+  const [activeCardFilterId, setActiveCardFilterId] = useState<number | null>(null)
+  const [activeCardFilterLabel, setActiveCardFilterLabel] = useState<string | null>(null)
 
   // --- WebSocket Event Handlers ---
   const handleWebSocketCardCreated = useCallback(
@@ -371,7 +375,48 @@ export const BoardPage = () => {
     [currentUserRole, user?.id]
   )
 
+  useEffect(() => {
+    setActiveCardFilterId(null)
+    setActiveCardFilterLabel(null)
+  }, [projectId])
+
+  const handleSearchSelect = useCallback(
+    (selection: { type: 'project' | 'card' | 'comment'; id: number; name?: string; title?: string; cardId?: number; cardTitle?: string; projectId?: number }) => {
+      if (selection.type === 'project') {
+        if (selection.id !== projectId) {
+          navigate(`/board/${selection.id}`)
+        }
+        return
+      }
+
+      const targetProjectId = selection.projectId ?? projectId
+      if (targetProjectId !== projectId) {
+        navigate(`/board/${targetProjectId}`)
+        return
+      }
+
+      const cardId = selection.type === 'comment' ? selection.cardId : selection.id
+      const label = selection.type === 'comment' ? selection.cardTitle : selection.title
+
+      if (cardId) {
+        setActiveCardFilterId(cardId)
+        setActiveCardFilterLabel(label ?? null)
+      }
+    },
+    [navigate, projectId]
+  )
+
   // --- Computed Columns ---
+  const filteredCardsByListId = useMemo(() => {
+    if (!activeCardFilterId) return cardsByListId
+
+    const filteredMap: Record<number, Card[]> = {}
+    Object.entries(cardsByListId).forEach(([listId, cards]) => {
+      filteredMap[Number(listId)] = cards.filter(card => card.id === activeCardFilterId)
+    })
+    return filteredMap
+  }, [cardsByListId, activeCardFilterId])
+
   const boardColumns: BoardColumn[] = useMemo(() => {
     const getListByStatus = (status: ListStatus) => dbLists.find(l => l.status === status)
 
@@ -381,10 +426,10 @@ export const BoardPage = () => {
         id: list?.id.toString() || `missing-${status}`,
         title: COLUMN_TITLES[status],
         status: status,
-        cards: list ? cardsByListId[list.id] || [] : []
+        cards: list ? filteredCardsByListId[list.id] || [] : []
       }
     })
-  }, [dbLists, cardsByListId])
+  }, [dbLists, filteredCardsByListId])
 
   // --- Helpers for Optimistic Updates ---
   const updateLocalCardState = (cardId: number, updater: (card: Card) => Card) => {
@@ -592,62 +637,85 @@ export const BoardPage = () => {
 
   // --- Render Helpers ---
   const renderHeader = () => (
-    <div className="flex-none px-8 py-6 flex items-center justify-between border-b border-white/10">
-      <div className="flex items-center gap-3">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Website Redesign Sprint</h1>
-        {/* WebSocket Connection Status */}
-        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-          {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
-          {isConnected ? 'Live' : 'Offline'}
+    <div className="flex-none px-8 py-6 border-b border-white/10">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Website Redesign Sprint</h1>
+          {/* WebSocket Connection Status */}
+          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+            {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
+            {isConnected ? 'Live' : 'Offline'}
+          </div>
+        </div>
+
+        {/* Improved Member Invite Section */}
+        <div className="flex items-center gap-3">
+          {/* Active Users Indicator */}
+          {boardUsers.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full">
+              <div className="flex items-center -space-x-2">
+                {boardUsers.slice(0, 3).map(u => (
+                  <Avatar key={u.userId} className="h-6 w-6 border-2 border-white ring-2 ring-blue-100">
+                    <AvatarImage src={u.avatarUrl} />
+                    <AvatarFallback className="bg-blue-100 text-blue-600 text-[9px] font-bold">{getInitials(u.username)}</AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              <span className="text-xs font-medium text-blue-600">{boardUsers.length === 1 ? '1 viewing' : `${boardUsers.length} viewing`}</span>
+            </div>
+          )}
+
+          <div className="h-6 w-px bg-slate-300 mx-1" />
+
+          <div className="flex items-center -space-x-2">
+            {members.slice(0, 5).map(m => (
+              <Avatar key={m.id} className="h-9 w-9 border-2 border-white ring-1 ring-slate-200">
+                <AvatarImage src={m.avatarUrl} />
+                <AvatarFallback className="bg-slate-100 text-slate-600 text-[10px] font-bold">{getInitials(m.username)}</AvatarFallback>
+              </Avatar>
+            ))}
+            {members.length > 5 && (
+              <div className="h-9 w-9 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">+{members.length - 5}</div>
+            )}
+          </div>
+
+          <div className="h-6 w-px bg-slate-300 mx-1" />
+
+          <Button
+            onClick={() => setIsInviteModalOpen(true)}
+            className="rounded-full h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium gap-2 shadow-sm transition-all"
+            disabled={!canManageMembers}
+            title={!canManageMembers ? 'Only admins and owners can invite members' : undefined}
+          >
+            <UserPlus size={14} />
+            Invite
+          </Button>
+
+          <Button onClick={() => setIsActivityDrawerOpen(true)} variant="outline" className="rounded-full h-9 w-9 p-0 border-slate-200 hover:bg-slate-100">
+            <Activity size={16} className="text-slate-600" />
+          </Button>
         </div>
       </div>
 
-      {/* Improved Member Invite Section */}
-      <div className="flex items-center gap-3">
-        {/* Active Users Indicator */}
-        {boardUsers.length > 0 && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full">
-            <div className="flex items-center -space-x-2">
-              {boardUsers.slice(0, 3).map(u => (
-                <Avatar key={u.userId} className="h-6 w-6 border-2 border-white ring-2 ring-blue-100">
-                  <AvatarImage src={u.avatarUrl} />
-                  <AvatarFallback className="bg-blue-100 text-blue-600 text-[9px] font-bold">{getInitials(u.username)}</AvatarFallback>
-                </Avatar>
-              ))}
-            </div>
-            <span className="text-xs font-medium text-blue-600">{boardUsers.length === 1 ? '1 viewing' : `${boardUsers.length} viewing`}</span>
+      <div className="mt-4 space-y-2">
+        <GlobalSearch defaultProjectId={Number.isFinite(projectId) ? projectId : undefined} onSelectResult={handleSearchSelect} />
+        {activeCardFilterId && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="rounded-full bg-teal-50 px-3 py-1 text-teal-700 border border-teal-200">
+              Filtered: {activeCardFilterLabel ?? `Card #${activeCardFilterId}`}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveCardFilterId(null)
+                setActiveCardFilterLabel(null)
+              }}
+              className="text-slate-500 hover:text-slate-700"
+            >
+              Clear
+            </button>
           </div>
         )}
-
-        <div className="h-6 w-px bg-slate-300 mx-1" />
-
-        <div className="flex items-center -space-x-2">
-          {members.slice(0, 5).map(m => (
-            <Avatar key={m.id} className="h-9 w-9 border-2 border-white ring-1 ring-slate-200">
-              <AvatarImage src={m.avatarUrl} />
-              <AvatarFallback className="bg-slate-100 text-slate-600 text-[10px] font-bold">{getInitials(m.username)}</AvatarFallback>
-            </Avatar>
-          ))}
-          {members.length > 5 && (
-            <div className="h-9 w-9 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">+{members.length - 5}</div>
-          )}
-        </div>
-
-        <div className="h-6 w-px bg-slate-300 mx-1" />
-
-        <Button
-          onClick={() => setIsInviteModalOpen(true)}
-          className="rounded-full h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium gap-2 shadow-sm transition-all"
-          disabled={!canManageMembers}
-          title={!canManageMembers ? 'Only admins and owners can invite members' : undefined}
-        >
-          <UserPlus size={14} />
-          Invite
-        </Button>
-
-        <Button onClick={() => setIsActivityDrawerOpen(true)} variant="outline" className="rounded-full h-9 w-9 p-0 border-slate-200 hover:bg-slate-100">
-          <Activity size={16} className="text-slate-600" />
-        </Button>
       </div>
     </div>
   )

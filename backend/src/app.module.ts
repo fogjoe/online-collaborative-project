@@ -22,6 +22,7 @@ import { ActivityModule } from './activity/activity.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { MailModule } from './mail/mail.module';
 import { ReminderModule } from './reminder/reminder.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { ReminderModule } from './reminder/reminder.module';
     WebsocketModule,
     MailModule,
     ReminderModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [
